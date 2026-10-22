@@ -53,7 +53,7 @@ export default function AdminPortal({ session, onSignOut }) {
         {active === "requests" && <ServiceQueue push={push} />}
         {active === "courses" && <CourseManagement push={push} />}
         {active === "org" && <OrganizationManagement push={push} />}
-        {active === "departments" && <Departments />}
+        {active === "departments" && <Departments push={push} />}
         {active === "audit" && <AuditTrail />}
       </Shell>
       <ToastStack toasts={toasts} dismiss={dismiss} />
@@ -562,6 +562,7 @@ function OrganizationManagement({ push }) {
   const [busy, setBusy] = useState(false);
   const [coordBusy, setCoordBusy] = useState(null);
   const [confirmTarget, setConfirmTarget] = useState(null);
+  const [openDept, setOpenDept] = useState(null);
 
   const departments = departmentData.data?.departments || [];
   const programs = departmentData.data?.programs || [];
@@ -668,14 +669,18 @@ function OrganizationManagement({ push }) {
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12, marginTop: 8 }}>
           {(departments || []).map((d) => (
-            <div key={d.code} style={{ padding: "14px 15px", borderRadius: 12, background: t.bgSoft, border: `1px solid ${t.border}` }}>
+            <div key={d.code} role="button" tabIndex={0} className="sv-lift" aria-label={`Open ${d.code}`}
+              onClick={() => setOpenDept(d.id)} onKeyDown={(e) => e.key === "Enter" && setOpenDept(d.id)}
+              style={{ padding: "14px 15px", borderRadius: 12, background: t.bgSoft, border: `1px solid ${t.border}`, cursor: "pointer" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
                 <div style={{ fontFamily: FONT_D, fontSize: 15, fontWeight: 700 }}>{d.code}</div>
-                <Button size="sm" variant="danger" icon={Trash2} onClick={() => askDeleteDepartment(d)}>Delete</Button>
+                <span onClick={(e) => e.stopPropagation()}>
+                  <Button size="sm" variant="danger" icon={Trash2} onClick={() => askDeleteDepartment(d)}>Delete</Button></span>
               </div>
               <div style={{ fontSize: 12.5, color: t.textDim, marginTop: 4 }}>{d.name}</div>
-              <div style={{ fontFamily: FONT_M, fontSize: 10.5, color: t.textFaint, marginTop: 8 }}>
-                HOD: {d.hodName || "Not assigned"}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+                <span style={{ fontFamily: FONT_M, fontSize: 10.5, color: t.textFaint }}>HOD: {d.hodName || "Not assigned"}</span>
+                <span style={{ fontSize: 11.5, fontWeight: 700, color: t.primary }}>Open →</span>
               </div>
             </div>
           ))}
@@ -726,6 +731,7 @@ function OrganizationManagement({ push }) {
       </Modal>
 
       <ConfirmDelete target={confirmTarget} onClose={() => setConfirmTarget(null)} />
+      <DepartmentDetail id={openDept} onClose={() => setOpenDept(null)} push={push} onChanged={departmentData.reload} />
 
       <Modal open={sectionOpen} onClose={() => setSectionOpen(false)} eyebrow="Organisation"
         title="Add class section" width={520}
@@ -751,21 +757,111 @@ function OrganizationManagement({ push }) {
   );
 }
 
-function Departments() {
+/** Everything under one department; opened by clicking a department anywhere in the admin portal. */
+function DepartmentDetail({ id, onClose, onChanged, push }) {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+  const [edit, setEdit] = useState(null);     // { name, hodName } while editing
+  const [busy, setBusy] = useState(false);
+  const load = () => api.adminDepartment(id).then((d) => { setData(d); setError(null); }).catch((e) => setError(e.message));
+  useEffect(() => { if (id) { setData(null); setEdit(null); load(); } }, [id]);
+
+  async function save() {
+    setBusy(true);
+    try {
+      await api.updateDepartment(id, { name: edit.name, hodName: edit.hodName });
+      push({ title: "Department updated", body: `${data.code} · HOD ${edit.hodName || "not assigned"}`, tone: "success" });
+      setEdit(null); load(); onChanged?.();
+    } catch (e) { push({ title: "Not updated", body: e.message, tone: "danger" }); }
+    finally { setBusy(false); }
+  }
+
+  const head = { fontFamily: FONT_M, fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: t.textFaint, margin: "16px 0 8px" };
+  return (
+    <Modal open={!!id} onClose={onClose} eyebrow="Department" width={720}
+      title={data ? `${data.code} · ${data.name}` : "Loading…"}
+      footer={edit
+        ? <><Button variant="ghost" onClick={() => setEdit(null)}>Cancel</Button>
+            <Button onClick={save} disabled={busy}>{busy ? <Spinner size={14} color="#fff" /> : "Save changes"}</Button></>
+        : <><Button variant="ghost" onClick={() => setEdit({ name: data?.name || "", hodName: data?.hodName || "" })} disabled={!data}>Edit name / HOD</Button>
+            <Button onClick={onClose}>Close</Button></>}>
+      {error ? <ErrorNote message={error} onRetry={load} /> : !data ? <Skeleton count={2} height={80} /> : (
+        <div>
+          {edit ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <Field label="Department name" value={edit.name} onChange={(v) => setEdit({ ...edit, name: v })} />
+              <Select label="Head of department" value={edit.hodName} onChange={(v) => setEdit({ ...edit, hodName: v })}
+                placeholder="Not assigned" options={data.faculty.map((f) => ({ value: f.name, label: `${f.name} · ${f.designation || "Faculty"}` }))}
+                hint="Choose from this department's faculty." />
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
+              {[["Head of department", data.hodName || "Not assigned"], ["Programmes", data.programs.length],
+                ["Classes", data.classes.length], ["Faculty", data.faculty.length], ["Students", data.students]].map(([l, v]) => (
+                <div key={l} style={{ padding: "11px 13px", borderRadius: 11, background: t.bgSoft, border: `1px solid ${t.border}` }}>
+                  <div style={{ fontFamily: FONT_M, fontSize: 9.5, letterSpacing: "0.12em", textTransform: "uppercase", color: t.textFaint }}>{l}</div>
+                  <div style={{ fontSize: typeof v === "number" ? 22 : 13.5, fontWeight: 800, marginTop: 4 }}>{v}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div style={head}>Classes</div>
+          {!data.classes.length ? <div style={{ fontSize: 12.5, color: t.textDim }}>No classes yet. Create one with “New class section”.</div> :
+            data.classes.map((c) => (
+              <div key={c.id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 12px", borderRadius: 10,
+                border: `1px solid ${t.border}`, marginBottom: 6, flexWrap: "wrap", background: "#fff" }}>
+                <strong style={{ fontSize: 13, minWidth: 150 }}>{c.programCode} · Year {c.year} · Sec {c.section}</strong>
+                <span style={{ fontSize: 12, color: t.textDim, flex: 1 }}>Coordinator: {c.coordinatorName || "not assigned"}</span>
+                <Badge tone="primary">{c.students} students</Badge><Badge tone="gold">{c.subjects} subjects</Badge>
+              </div>
+            ))}
+
+          <div style={head}>Faculty</div>
+          {!data.faculty.length ? <div style={{ fontSize: 12.5, color: t.textDim }}>No faculty in this department yet.</div> :
+            data.faculty.map((f) => (
+              <div key={f.id} style={{ padding: "10px 12px", borderRadius: 10, border: `1px solid ${t.border}`, marginBottom: 6, background: "#fff" }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <strong style={{ fontSize: 13 }}>{f.name}</strong>
+                  {data.hodName && data.hodName === f.name && <Badge tone="gold">HOD</Badge>}
+                  <span style={{ fontSize: 11.5, color: t.textDim }}>{f.designation} · {f.staffCode}</span>
+                </div>
+                <div style={{ fontSize: 11.5, color: t.textDim, marginTop: 4 }}>
+                  {f.teaches.length ? f.teaches.join(" · ") : "No subjects assigned"}</div>
+              </div>
+            ))}
+
+          {data.programs.length > 0 && <>
+            <div style={head}>Programmes</div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {data.programs.map((p) => <Badge key={p.id} tone="primary">{p.code} · {p.name}</Badge>)}
+            </div>
+          </>}
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+function Departments({ push }) {
   const { loading, data, error, reload } = useAsync(() => api.adminDashboard(), []);
+  const [openDept, setOpenDept] = useState(null);
   if (loading) return <Skeleton />;
   if (error) return <ErrorNote message={error} onRetry={reload} />;
 
   return (
     <Card lift={false} style={{ padding: 18 }}>
       <SealWatermark size={200} style={{ top: -50, right: -40 }} />
-      <SectionHead icon={Building2} title="Departments" sub="Attendance volume and rate per department." />
+      <SectionHead icon={Building2} title="Departments" sub="Attendance per department. Click a department for its HOD, classes and staff." />
+      <DepartmentDetail id={openDept} onClose={() => setOpenDept(null)} push={push} onChanged={reload} />
       <div className="sv-stagger" style={{ display: "flex", flexDirection: "column", gap: 11 }}>
         {(data.departmentStats || []).map((d) => (
-          <div key={d.department} style={{ padding: "14px 15px", borderRadius: 11,
-            background: t.bgSoft, border: `1px solid ${t.border}` }}>
+          <div key={d.department} role="button" tabIndex={0} className="sv-lift" onClick={() => setOpenDept(d.id)}
+            onKeyDown={(e) => e.key === "Enter" && setOpenDept(d.id)} style={{ padding: "14px 15px", borderRadius: 11,
+            background: t.bgSoft, border: `1px solid ${t.border}`, cursor: "pointer" }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 9, flexWrap: "wrap", gap: 10 }}>
-              <span style={{ fontFamily: FONT_D, fontSize: 15, fontWeight: 700 }}>{d.department}</span>
+              <span><span style={{ fontFamily: FONT_D, fontSize: 15, fontWeight: 700 }}>{d.department}</span>
+                <span style={{ fontSize: 12, color: t.textDim, marginLeft: 8 }}>{d.name}{d.hodName ? ` · HOD ${d.hodName}` : ""}</span></span>
               <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
                 <span style={{ fontFamily: FONT_M, fontSize: 10.5, color: t.textFaint }}>
                   {Number(d.periods).toLocaleString()} periods

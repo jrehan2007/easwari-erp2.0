@@ -21,6 +21,16 @@ public interface MarkRepo extends JpaRepository<Mark, Long> {
            """)
     List<Object[]> publishedMarks(@Param("studentId") Long studentId);
 
+    /** Every published component (theory and practical) for one student, with the course teacher. */
+    @Query("""
+           select so.subject.code, so.subject.name, so.subject.credits, so.subject.laboratory,
+                  a.type, m.score, a.maxMarks, f.name
+           from Mark m join m.assessment a join a.subjectOffering so left join so.faculty f
+           where m.student.id = :studentId and a.published = true
+           order by so.subject.code, a.type
+           """)
+    List<Object[]> publishedComponents(@Param("studentId") Long studentId);
+
     @Query("select m from Mark m where m.assessment.id = :assessmentId and m.student.classSection.id = :sectionId")
     List<Mark> findForSection(@Param("assessmentId") Long assessmentId, @Param("sectionId") Long sectionId);
 

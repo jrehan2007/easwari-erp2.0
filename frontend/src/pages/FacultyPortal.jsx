@@ -212,7 +212,8 @@ function AttendanceEntry({ push }) {
   const [editable, setEditable] = useState({});     // offeringId -> may this user mark it?
 
   useEffect(() => {
-    if (!sectionId && classes.data?.length) setSectionId(classes.data[0].classSectionId);
+    // Open on the class this person coordinates, if any; otherwise the first class they teach.
+    if (!sectionId && classes.data?.length) setSectionId((classes.data.find((c) => c.coordinator) || classes.data[0]).classSectionId);
   }, [classes.data]);
 
   useEffect(() => {
@@ -465,13 +466,23 @@ function MarksEntry({ push }) {
     if (!classes.data) return;
     const ids = [...new Set(classes.data.map((c) => c.classSectionId))];
     Promise.all(ids.map((id) => api.facultyOfferings(id).catch(() => []))).then((lists) => {
-      const opts = lists.flat().filter((o) => o.editable);
+      // Zero-credit hours (counselling, coding practice) carry no marks.
+      const opts = lists.flat().filter((o) => o.editable && o.credits > 0);
       setOptions(opts);
       if (opts.length && !offeringId) { setOfferingId(opts[0].id); setSectionId(opts[0].classSectionId); }
     });
   }, [classes.data]);
 
-  const MAX_FOR = { IA1: 50, IA2: 50, UNIT_TEST: 25, GROUP_PRESENTATION: 10, ASSIGNMENT: 10, MODEL_EXAM: 100 };
+  const MAX_FOR = { IA1: 50, IA2: 50, UNIT_TEST: 25, GROUP_PRESENTATION: 10, ASSIGNMENT: 10, MODEL_EXAM: 100,
+    LAB_OBSERVATION: 20, LAB_RECORD: 20, LAB_MODEL_EXAM: 50, LAB_VIVA: 10 };
+  const THEORY_TYPES = ["IA1", "IA2", "UNIT_TEST", "ASSIGNMENT", "GROUP_PRESENTATION", "MODEL_EXAM"];
+  const LAB_TYPES = ["LAB_OBSERVATION", "LAB_RECORD", "LAB_MODEL_EXAM", "LAB_VIVA"];
+  const TYPE_LABEL = { IA1: "IA 1", IA2: "IA 2", UNIT_TEST: "Unit test", ASSIGNMENT: "Assignment", GROUP_PRESENTATION: "Group presentation",
+    MODEL_EXAM: "Model exam", LAB_OBSERVATION: "Lab observation", LAB_RECORD: "Lab record", LAB_MODEL_EXAM: "Model practical", LAB_VIVA: "Viva voce" };
+  const isLab = !!options.find((o) => o.id === offeringId)?.laboratory;
+  const types = isLab ? LAB_TYPES : THEORY_TYPES;
+  // Switching between a theory and a lab course moves to that course's first component.
+  useEffect(() => { if (offeringId && !types.includes(type)) setType(types[0]); }, [offeringId, isLab]);
   function pickType(x) { setType(x); }
 
   // Start from what is already stored, so the teacher sees (and keeps) earlier scores.
@@ -539,7 +550,7 @@ function MarksEntry({ push }) {
           <select value={type} onChange={(e) => pickType(e.target.value)}
             style={{ width: "100%", padding: "11px 13px", borderRadius: 9, background: "#fff",
               border: `1px solid ${t.border}`, fontSize: 13, minHeight: 44 }}>
-            {["IA1", "IA2", "UNIT_TEST", "GROUP_PRESENTATION", "ASSIGNMENT", "MODEL_EXAM"].map((x) => <option key={x} value={x}>{x.replace("_", " ")}</option>)}
+            {types.map((x) => <option key={x} value={x}>{TYPE_LABEL[x]}</option>)}
           </select>
         </div>
         <div style={{ minWidth: 100 }}>

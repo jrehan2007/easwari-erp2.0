@@ -120,4 +120,33 @@ public class Dtos {
                                       String proofFileName, String proofUrl, String status,
                                       String appliedAt, String reviewedBy, String reviewedAt, String reviewNote) {}
     public record ChatRequest(@NotBlank String message) {}
+
+    // ── Examinations ──
+    public record ExamComponent(String type, String label, Double score, int maxMarks) {}
+    /** One course's published internal components; percentage is over the components with a score. */
+    public record CourseAssessments(String subjectCode, String subjectName, int credits, String faculty,
+                                    List<ExamComponent> components, Integer percentage) {}
+    public record UniversityCourse(String subjectCode, String subjectName, int credits, boolean laboratory,
+                                   int internalMarks, int externalMarks, int total, String grade, int gradePoint,
+                                   boolean passed) {}
+    public record UniversitySemester(int semester, String examSession, double sgpa, int creditsRegistered,
+                                     int creditsEarned, int arrears, List<UniversityCourse> courses) {}
+    public record UniversityView(double cgpa, int creditsEarned, int standingArrears, List<UniversitySemester> semesters) {}
+    public record PracticalsView(List<CourseAssessments> current, List<UniversityCourse> completed) {}
+
+    // ── Fees ──
+    public record FeeLine(Long id, String category, String description, String term, long amount, String dueDate,
+                          boolean paid, String paidAt, String receiptNo, String paymentMode, boolean overdue) {}
+    public record FeeStatement(long billed, long paid, long due, long overdue, List<FeeLine> items) {}
+    public record PayFeesRequest(@NotEmpty List<Long> feeIds, @NotBlank String mode) {}
+
+    // ── Department detail (admin) ──
+    public record UpdateDepartmentRequest(String name, String hodName) {}
+    public record DepartmentClass(Long id, String programCode, int year, int semester, String section,
+                                  String coordinatorName, long students, long subjects) {}
+    public record DepartmentFaculty(Long id, String name, String staffCode, String designation, String email,
+                                    List<String> teaches) {}
+    public record DepartmentDetail(Long id, String code, String name, String hodName, long students,
+                                   List<Map<String, Object>> programs, List<DepartmentClass> classes,
+                                   List<DepartmentFaculty> faculty) {}
 }

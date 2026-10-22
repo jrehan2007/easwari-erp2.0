@@ -40,6 +40,8 @@ public class StudentController {
     private final IntelligenceService intelligence;
     private final ExcelService excelService;
     private final LeaveApplicationService leaveApplicationService;
+    private final ExamService examService;
+    private final FeeService feeService;
 
     private Student me() {
         User user = currentUser.get();
@@ -80,6 +82,35 @@ public class StudentController {
     @GetMapping("/marks")
     public MarksView marks() {
         return marksService.viewFor(me().getId());
+    }
+
+    /* ─────────────── Examinations ─────────────── */
+
+    @GetMapping("/exams/assessments")
+    public List<CourseAssessments> assessments() {
+        return examService.assessments(me().getId());
+    }
+
+    @GetMapping("/exams/practicals")
+    public PracticalsView practicals() {
+        return examService.practicals(me().getId());
+    }
+
+    @GetMapping("/exams/university")
+    public UniversityView university() {
+        return examService.university(me().getId());
+    }
+
+    /* ─────────────── Fees (simulated payment) ─────────────── */
+
+    @GetMapping("/fees")
+    public FeeStatement fees() {
+        return feeService.statement(me().getId());
+    }
+
+    @PostMapping("/fees/pay")
+    public FeeStatement payFees(@Valid @RequestBody PayFeesRequest req) {
+        return feeService.pay(currentUser.get(), me(), req);
     }
 
     @GetMapping("/cms-requests")

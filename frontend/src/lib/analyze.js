@@ -131,3 +131,100 @@ export function makeQuiz(text, n = 6) {
   }
   return out;
 }
+
+/* ───────── Full resume report: score, pros, cons, upgrades, readiness ───────── */
+const PERSONAL = /\b(date of birth|d\.?o\.?b|father'?s name|mother'?s name|religion|caste|marital status|nationality|gender)\b/i;
+const DECLARATION = /^\s*declaration\b|hereby declare/im;
+const GENERIC_OBJECTIVE = /(challenging (position|role|environment)|utili[sz]e my skills|growth of the (organi[sz]ation|company))/i;
+const CGPA = /\b(c?gpa|cgpa|sgpa)\b[^\n]{0,12}\d(\.\d{1,2})?|\b\d\.\d{1,2}\s*\/\s*10\b/i;
+const CODING = /(leetcode|codechef|codeforces|hackerrank|geeksforgeeks|gfg)/i;
+const ACHIEVE = /\b(winner|won|first place|1st place|runner[- ]?up|finalist|rank(ed)?|top \d+|hackathon|award|scholarship|published)\b/i;
+const INTERN = /\b(intern(ship)?|trainee|work experience)\b/i;
+
+/**
+ * Turns the raw scores into what a student can act on. `meta` comes from the
+ * PDF reader (pages, size, fonts, links) and is optional for pasted text.
+ */
+export function resumeReport(text, role, meta = null) {
+  const r = analyzeResume(text, role);
+  const raw = text || "";
+  const pros = [], cons = [], upgrades = [];
+
+  // PDF format
+  let formatPenalty = 0;
+  if (meta) {
+    // A scanned or image-only PDF has (almost) no text layer at all; a short resume still has some.
+    const perPage = meta.chars / Math.max(1, meta.pages);
+    if (meta.chars < 120 || perPage < 60) { cons.push("The PDF has almost no selectable text. It looks scanned or exported as an image, so ATS software can't read it."); formatPenalty += 25;
+      upgrades.push("Export the resume from Word, Google Docs or LaTeX as a text PDF, not a photo or scan."); }
+    else pros.push("Text is selectable, so applicant tracking systems can parse it.");
+    if (meta.pages === 1) pros.push("One page: the right length for an internship or fresher role.");
+    else if (meta.pages === 2) { cons.push("Two pages. Recruiters spend seconds on a fresher resume; one page is safer."); formatPenalty += 4;
+      upgrades.push("Trim to one page: drop school-level details, keep the strongest three projects."); }
+    else { cons.push(`${meta.pages} pages is too long for a student resume.`); formatPenalty += 12;
+      upgrades.push("Cut it down to one page."); }
+    if (meta.sizeKB > 2048) { cons.push(`The file is ${(meta.sizeKB / 1024).toFixed(1)} MB. Many job portals reject files over 2 MB.`); formatPenalty += 5;
+      upgrades.push("Compress the PDF under 1 MB (remove large images)."); }
+    if (meta.fontSizes > 6) { cons.push("Many different font sizes make the layout look inconsistent."); formatPenalty += 3;
+      upgrades.push("Use one font, with at most three sizes: name, headings, body."); }
+    const linked = meta.links.filter((l) => /linkedin|github|leetcode|portfolio|vercel|netlify|\.dev|\.me/i.test(l));
+    if (linked.length) pros.push(`Clickable profile links (${linked.length}) let a recruiter check your work in one click.`);
+    else if (r.links) upgrades.push("Make your GitHub and LinkedIn links clickable in the PDF.");
+    if (!/resume|cv/i.test(meta.fileName) || /^(document|untitled|scan|img|image)/i.test(meta.fileName)) {
+      upgrades.push("Name the file Firstname_Lastname_Resume.pdf so it's easy to find in a recruiter's downloads.");
+    }
+  }
+
+  // Content
+  const has = (k) => r.sections[k];
+  if (r.email && r.phone) pros.push("Contact details (email and phone) are present."); else cons.push("Contact details are incomplete.");
+  if (r.links) pros.push("Links to GitHub or LinkedIn show work beyond the classroom.");
+  else { cons.push("No GitHub or LinkedIn link."); upgrades.push("Add GitHub and LinkedIn URLs under your name."); }
+  if (has("education") && CGPA.test(raw)) pros.push("Education section shows your CGPA, which placement cells filter on.");
+  else if (has("education")) { cons.push("Education is listed without a CGPA."); upgrades.push("Show your CGPA (e.g. CGPA 8.4/10) next to your degree."); }
+  else { cons.push("No Education section heading."); upgrades.push('Add an "Education" section: degree, college, year, CGPA.'); }
+  if (has("projects")) pros.push("Has a Projects section, the strongest signal for a student."); else {
+    cons.push("No Projects section."); upgrades.push("Add 2–3 projects, each with the tech stack, what you built and a measurable result."); }
+  if (has("experience") || INTERN.test(raw)) pros.push("Mentions internship or work experience.");
+  else upgrades.push("Even a short internship, freelance job or open-source contribution makes a big difference. Add one when you can.");
+  if (has("skills")) pros.push("Has a Skills section for keyword matching."); else { cons.push("No Skills section."); upgrades.push('Add a "Technical Skills" section grouped as Languages, Frameworks, Tools.'); }
+  if (CODING.test(raw)) pros.push("Coding-platform profile (LeetCode, CodeChef…) shows problem-solving practice.");
+  else upgrades.push("Add your LeetCode or CodeChef profile with problems solved or rating.");
+  if (ACHIEVE.test(raw)) pros.push("Achievements (hackathons, ranks, awards) stand out.");
+  else upgrades.push("Add achievements: hackathons, contests, symposium prizes, scholarships.");
+  if (has("extras")) pros.push("Lists certifications or achievements.");
+  if (r.content >= 70) pros.push("Bullets use action verbs and numbers, so impact is clear.");
+  else { cons.push("Bullets describe duties more than results."); upgrades.push('Rewrite bullets as "Built X using Y, which improved Z by N%".'); }
+  if (PERSONAL.test(raw)) { cons.push("Contains personal details (date of birth, father's name, religion…) that recruiters don't need."); formatPenalty += 3;
+    upgrades.push("Remove date of birth, parents' names, religion and marital status."); }
+  if (DECLARATION.test(raw)) { cons.push('Has a "Declaration" section, which is outdated and wastes space.'); upgrades.push('Delete the "Declaration" section.'); }
+  if (GENERIC_OBJECTIVE.test(raw)) { cons.push("The objective is generic and says nothing specific about you."); upgrades.push("Replace the objective with a 2-line summary: your focus, top skills and what you're looking for."); }
+  if (r.words < 250) cons.push(`Only ${r.words} words: too thin to judge.`);
+  if (r.words > 800) cons.push(`${r.words} words: too dense for a fresher resume.`);
+  if (r.missing.length) upgrades.push(`For ${role.title}, learn and show: ${r.missing.slice(0, 5).join(", ")}.`);
+
+  const score = Math.max(0, Math.min(100, r.overall - formatPenalty));
+  const scanned = meta && (meta.chars < 120 || meta.chars / Math.max(1, meta.pages) < 60);
+
+  const internshipBlocks = [];
+  if (scanned) internshipBlocks.push("the PDF can't be read by ATS");
+  if (!(r.email && r.phone)) internshipBlocks.push("contact details are missing");
+  if (!has("education")) internshipBlocks.push("education is missing");
+  if (!has("projects") && !has("skills")) internshipBlocks.push("no projects or skills section");
+  if (score < 55) internshipBlocks.push(`score ${score} is below 55`);
+
+  const placementBlocks = [];
+  if (scanned) placementBlocks.push("the PDF can't be read by ATS");
+  if (!has("projects") && !has("experience")) placementBlocks.push("needs projects or internship experience");
+  if (!CGPA.test(raw)) placementBlocks.push("CGPA isn't shown");
+  if (!r.links) placementBlocks.push("no GitHub / LinkedIn link");
+  if (meta && meta.pages > 2) placementBlocks.push("more than two pages");
+  if (r.keywords < 50) placementBlocks.push(`only ${r.keywords}% of ${role.title} skills found`);
+  if (score < 70) placementBlocks.push(`score ${score} is below 70`);
+
+  return {
+    ...r, score, pros, cons, upgrades: [...new Set(upgrades)],
+    internship: { ready: internshipBlocks.length === 0, reasons: internshipBlocks },
+    placement: { ready: placementBlocks.length === 0, reasons: placementBlocks },
+  };
+}

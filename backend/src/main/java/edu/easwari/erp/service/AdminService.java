@@ -38,6 +38,8 @@ public class AdminService {
     private final SkillScoreRepo skillScoreRepo;
     private final SubjectOfferingRepo offeringRepo;
     private final SubjectRepo subjectRepo;
+    private final FeeItemRepo feeRepo;
+    private final UniversityResultRepo resultRepo;
     private final PasswordEncoder encoder;
     private final AuditService audit;
     private final IntelligenceService intelligence;
@@ -344,6 +346,55 @@ public class AdminService {
         return toClassSectionSummary(section);
     }
 
+    /** Everything that hangs off one department: HOD, programmes, classes, staff and head-count. */
+    @Transactional(readOnly = true)
+    public DepartmentDetail departmentDetail(Long departmentId) {
+        Department d = departmentRepo.findById(departmentId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Department not found"));
+        List<Map<String, Object>> programs = new ArrayList<>();
+        List<DepartmentClass> classes = new ArrayList<>();
+        long students = 0;
+        for (Program p : programRepo.findByDepartmentId(d.getId())) {
+            Map<String, Object> pm = new LinkedHashMap<>();
+            pm.put("id", p.getId()); pm.put("code", p.getCode()); pm.put("name", p.getName());
+            pm.put("durationYears", p.getDurationYears());
+            programs.add(pm);
+            for (ClassSection cs : sectionRepo.findByProgramId(p.getId())) {
+                long n = studentRepo.countByClassSectionId(cs.getId());
+                students += n;
+                classes.add(new DepartmentClass(cs.getId(), p.getCode(), cs.getYear(), cs.getSemester(), cs.getSection(),
+                        cs.getCoordinator() == null ? null : cs.getCoordinator().getName(), n,
+                        offeringRepo.findByClassSectionId(cs.getId()).size()));
+            }
+        }
+        classes.sort(Comparator.comparing(DepartmentClass::programCode).thenComparingInt(DepartmentClass::year)
+                .thenComparing(DepartmentClass::section));
+        List<DepartmentFaculty> faculty = facultyRepo.findByDepartmentId(d.getId()).stream()
+                .sorted(Comparator.comparing((Faculty f) -> d.getHodName() != null && d.getHodName().equalsIgnoreCase(f.getName()) ? 0 : 1)
+                        .thenComparing(Faculty::getName))
+                .map(f -> new DepartmentFaculty(f.getId(), f.getName(), f.getStaffCode(), f.getDesignation(), f.getEmail(),
+                        offeringRepo.findByFacultyId(f.getId()).stream()
+                                .map(o -> o.getSubject().getCode() + " · " + o.getClassSection().getDisplayName())
+                                .sorted().toList()))
+                .toList();
+        return new DepartmentDetail(d.getId(), d.getCode(), d.getName(), d.getHodName(), students, programs, classes, faculty);
+    }
+
+    @Transactional
+    public DepartmentSummary updateDepartment(User actor, Long departmentId, UpdateDepartmentRequest req) {
+        Department d = departmentRepo.findById(departmentId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Department not found"));
+        if (req.name() != null) {
+            if (req.name().isBlank()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The department name can't be empty.");
+            d.setName(req.name().trim());
+        }
+        if (req.hodName() != null) d.setHodName(req.hodName().isBlank() ? null : req.hodName().trim());
+        departmentRepo.save(d);
+        audit.record(actor, "DEPARTMENT_UPDATED", "Department", d.getId(),
+                d.getCode() + " — " + d.getName() + " · HOD: " + (d.getHodName() == null ? "not assigned" : d.getHodName()));
+        return new DepartmentSummary(d.getId(), d.getCode(), d.getName(), d.getHodName());
+    }
+
     @Transactional(readOnly = true)
     public List<DepartmentSummary> listDepartments() {
         return departmentRepo.findAll().stream()
@@ -411,6 +462,8 @@ public class AdminService {
                 leaveRepo.deleteByStudentId(sid);
                 placementRepo.deleteByStudentId(sid);
                 skillScoreRepo.deleteByStudentId(sid);
+                feeRepo.deleteByStudentId(sid);
+                resultRepo.deleteByStudentId(sid);
                 studentRepo.delete(s);
             });
         } else if (target.getRole() == Role.FACULTY) {
@@ -477,14 +530,21 @@ public class AdminService {
         List<Map<String, Object>> deptStats = new ArrayList<>();
         long totalConducted = 0, totalAttended = 0;
 
+        Map<String, long[]> rollup = new HashMap<>();
         for (Object[] row : attendanceRepo.departmentRollup()) {
-            String code = (String) row[0];
-            long conducted = ((Number) row[1]).longValue();
-            long attended = ((Number) row[2]).longValue();
+            rollup.put((String) row[0], new long[]{((Number) row[1]).longValue(), ((Number) row[2]).longValue()});
+        }
+        // Every department is listed, including a new one with no attendance yet.
+        for (Department d : departmentRepo.findAll().stream().sorted(Comparator.comparing(Department::getCode)).toList()) {
+            long[] r = rollup.getOrDefault(d.getCode(), new long[]{0, 0});
+            long conducted = r[0], attended = r[1];
             totalConducted += conducted;
             totalAttended += attended;
             Map<String, Object> m = new LinkedHashMap<>();
-            m.put("department", code);
+            m.put("id", d.getId());
+            m.put("department", d.getCode());
+            m.put("name", d.getName());
+            m.put("hodName", d.getHodName());
             m.put("attendance", conducted == 0 ? 0 : Math.round(attended * 100.0 / conducted));
             m.put("periods", conducted);
             deptStats.add(m);

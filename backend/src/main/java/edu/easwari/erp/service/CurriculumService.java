@@ -42,7 +42,7 @@ public class CurriculumService {
                                  int durationYears, int semestersPerYear, int totalCredits) {}
     public record OfferingView(Long id, Long classSectionId, String sectionLabel, String subjectCode,
                                String subjectName, int credits, Long facultyId, String facultyName,
-                               List<String> slots, boolean editable) {}
+                               List<String> slots, boolean editable, boolean laboratory) {}
 
     /* ─────────────── Programmes ─────────────── */
 
@@ -200,6 +200,6 @@ public class CurriculumService {
         Faculty f = o.getFaculty();
         return new OfferingView(o.getId(), o.getClassSection().getId(), o.getClassSection().getDisplayName(),
                 o.getSubject().getCode(), o.getSubject().getName(), o.getSubject().getCredits(),
-                f == null ? null : f.getId(), f == null ? null : f.getName(), slots, editable);
+                f == null ? null : f.getId(), f == null ? null : f.getName(), slots, editable, o.getSubject().isLaboratory());
     }
 }

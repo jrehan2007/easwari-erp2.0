@@ -21,6 +21,7 @@ public class MarksService {
     private final SubjectOfferingRepo offeringRepo;
     private final FacultyRepo facultyRepo;
     private final AuditService audit;
+    private final UniversityResultRepo resultRepo;
 
     /**
      * Save draft or publish. Nothing reaches the student view until
@@ -138,8 +139,18 @@ public class MarksService {
 
     @Transactional
     public void recomputeCgpa(Student student) {
+        // Completed semesters count through their university grades; the current
+        // semester's courses are estimated from published internals until results arrive.
         int weighted = 0, credits = 0;
+        Set<String> graded = new HashSet<>();
+        for (UniversityResult r : resultRepo.findByStudentIdOrderBySemesterAscSubjectCodeAsc(student.getId())) {
+            graded.add(r.getSubjectCode());
+            if (!r.passed()) continue;
+            weighted += r.getGradePoint() * r.getCredits();
+            credits += r.getCredits();
+        }
         for (SubjectMarksBuilder b : publishedBySubject(student.getId())) {
+            if (graded.contains(b.code)) continue;
             Integer pct = b.averagePercentage();
             if (pct == null) continue;
             String g = grade(pct);
@@ -169,10 +180,11 @@ public class MarksService {
     private List<SubjectMarksBuilder> publishedBySubject(Long studentId) {
         Map<String, SubjectMarksBuilder> map = new LinkedHashMap<>();
         for (Object[] row : markRepo.publishedMarks(studentId)) {
+            AssessmentType type = (AssessmentType) row[3];
+            if (type != AssessmentType.IA1 && type != AssessmentType.IA2) continue;   // other components live under Examinations
             String code = (String) row[0];
             SubjectMarksBuilder b = map.computeIfAbsent(code, k -> new SubjectMarksBuilder(
                     code, (String) row[1], ((Number) row[2]).intValue()));
-            AssessmentType type = (AssessmentType) row[3];
             Double score = row[4] == null ? null : ((Number) row[4]).doubleValue();
             int max = ((Number) row[5]).intValue();
             if (type == AssessmentType.IA1) { b.ia1 = score; b.ia1Max = max; }

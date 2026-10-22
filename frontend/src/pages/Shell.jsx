@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Menu, Bell, LogOut, ChevronRight, ChevronLeft } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Menu, Bell, LogOut, ChevronRight, ChevronLeft, ChevronDown } from "lucide-react";
 import { theme as t, COLLEGE, FONT_D, FONT_B, FONT_M } from "../lib/theme";
 import { CollegeMark } from "../components/Shared";
 import LiquidEther from "../components/LiquidEther";
@@ -13,6 +13,17 @@ export default function Shell({ nav, active, setActive, session, onSignOut, chil
   const [collapsed, setCollapsed] = useState(false);
 
   const current = nav.find((n) => n.key === active);
+  const [boxOpen, setBoxOpen] = useState(false);
+
+  // Pages marked mono (the Career Hub) show the whole portal in black and white.
+  // The filter goes on <html>: there it doesn't trap fixed modals and toasts.
+  const mono = !!current?.mono;
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.transition = "filter .45s ease";
+    root.style.filter = mono ? "grayscale(1)" : "";
+    return () => { root.style.filter = ""; };
+  }, [mono]);
   const groups = nav.reduce((acc, n) => {
     (acc[n.group || "Menu"] = acc[n.group || "Menu"] || []).push(n);
     return acc;
@@ -37,13 +48,33 @@ export default function Shell({ nav, active, setActive, session, onSignOut, chil
       </div>
 
       <nav className="sv-scroll" style={{ display: "flex", flexDirection: "column", flex: 1, overflowY: "auto" }}>
-        {Object.entries(groups).map(([group, items]) => (
-          <div key={group} style={{ marginBottom: 10 }}>
-            {!(collapsed && !isMobile) && (
+        {Object.entries(groups).map(([group, items]) => {
+          const boxed = items[0].box;
+          const inGroup = items.some((i) => i.key === active);
+          const showItems = !boxed || inGroup || boxOpen || (collapsed && !isMobile);
+          const BoxIcon = items[0].icon;
+          const groupStyle = boxed
+            ? { marginBottom: 10, borderRadius: 12, padding: 4, border: `1.5px solid ${inGroup ? "#111" : t.border}`,
+                background: inGroup ? "rgba(0,0,0,0.04)" : "rgba(255,255,255,0.55)" }
+            : { marginBottom: 10 };
+          return (
+          <div key={group} style={groupStyle}>
+            {boxed && !(collapsed && !isMobile) ? (
+              <div role="button" tabIndex={0} aria-expanded={showItems}
+                onClick={() => { if (inGroup) { setBoxOpen(!boxOpen); } else { setBoxOpen(true); setActive(items[0].key); setMobileOpen(false); } }}
+                onKeyDown={(e) => e.key === "Enter" && (setBoxOpen(true), setActive(items[0].key))}
+                style={{ display: "flex", alignItems: "center", gap: 9, padding: "9px 9px", borderRadius: 9, cursor: "pointer",
+                  background: inGroup ? "#111" : "transparent", color: inGroup ? "#fff" : "#000" }}>
+                <BoxIcon size={16} style={{ flexShrink: 0 }} />
+                <span style={{ fontSize: 12.5, fontWeight: 800, flex: 1, letterSpacing: "0.01em" }}>{group}</span>
+                <span style={{ fontFamily: FONT_M, fontSize: 8.5, letterSpacing: "0.12em", opacity: 0.75 }}>B&amp;W</span>
+                <ChevronDown size={14} style={{ transform: showItems ? "rotate(180deg)" : "none", transition: "transform .2s ease" }} />
+              </div>
+            ) : !(collapsed && !isMobile) && (
               <div style={{ fontFamily: FONT_M, fontSize: 8.5, letterSpacing: "0.16em",
                 textTransform: "uppercase", color: "#000000", padding: "6px 11px 5px" }}>{group}</div>
             )}
-            {items.map((item) => {
+            {showItems && (boxed && !(collapsed && !isMobile) ? items.slice(1) : items).map((item) => {
               const on = active === item.key;
               return (
                 <div key={item.key} role="button" tabIndex={0} aria-label={item.label}
@@ -71,7 +102,8 @@ export default function Shell({ nav, active, setActive, session, onSignOut, chil
               );
             })}
           </div>
-        ))}
+          );
+        })}
       </nav>
 
       {!(collapsed && !isMobile) && (

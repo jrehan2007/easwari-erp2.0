@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   LayoutDashboard, Calendar, BarChart3, Building, BookOpen, Briefcase, Rocket, Target,
   Download, Filter, FileText, Github, GraduationCap, FolderGit2, Headphones, Settings as SettingsIcon, AlertTriangle, CheckCircle2, Award, Clock, ArrowUpRight, Send, Check, Info,
+  ClipboardCheck, FlaskConical, Wallet, Compass,
 } from "lucide-react";
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
@@ -15,25 +16,33 @@ import {
 } from "../components/Shared";
 import { api, download } from "../lib/api";
 import KpiTiles from "../components/KpiTiles";
-import { ResumeAnalyzer, GithubAnalyzer, SkillGap, CareerCourses, Certifications, ProjectBlueprints, StudyAssistant, QuickCodeSettings } from "./CareerHub";
+import { ResumeAnalyzer, GithubAnalyzer, SkillGap, CareerCourses, Certifications, ProjectBlueprints, StudyAssistant, QuickCodeSettings, CareerHome } from "./CareerHub";
+import { Assessments, Practicals, UniversityExams } from "./StudentExams";
+import FeePortal from "./FeePortal";
 
 const NAV = [
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, group: "Academics" },
   { key: "attendance", label: "Attendance", icon: Calendar, group: "Academics" },
-  { key: "marks", label: "Internal Marks", icon: BarChart3, group: "Academics" },
+  { key: "marks", label: "Internal Marks", icon: BarChart3, group: "Examinations" },
+  { key: "assessments", label: "Assessments", icon: ClipboardCheck, group: "Examinations" },
+  { key: "practicals", label: "Practicals", icon: FlaskConical, group: "Examinations" },
+  { key: "university", label: "University Exams", icon: GraduationCap, group: "Examinations" },
+  { key: "fees", label: "Fee Portal", icon: Wallet, group: "Fees" },
   { key: "cms", label: "Campus Services", icon: Building, group: "Campus" },
   { key: "leave", label: "Leave / OD", icon: Calendar, group: "Academic Requests" },
   { key: "learning", label: "Learning Path", icon: BookOpen, group: "Growth" },
   { key: "placement", label: "Placement", icon: Briefcase, group: "Growth" },
   { key: "internships", label: "Internships", icon: Rocket, group: "Growth" },
   { key: "roadmap", label: "Roadmap", icon: Target, group: "Growth" },
-  { key: "resume", label: "Resume Analyzer", icon: FileText, group: "Career Hub" },
-  { key: "github", label: "GitHub Analyzer", icon: Github, group: "Career Hub" },
-  { key: "skillgap", label: "Skill Gap", icon: Target, group: "Career Hub" },
-  { key: "courses", label: "Courses", icon: GraduationCap, group: "Career Hub" },
-  { key: "certs", label: "Certifications", icon: Award, group: "Career Hub" },
-  { key: "projects", label: "Projects", icon: FolderGit2, group: "Career Hub" },
-  { key: "study", label: "Study Assistant", icon: Headphones, group: "Career Hub" },
+  // One boxed section; every page inside it is shown in black and white.
+  { key: "careerhub", label: "Overview", icon: Compass, group: "Career Hub", box: true, mono: true },
+  { key: "resume", label: "Resume Analyzer", icon: FileText, group: "Career Hub", box: true, mono: true },
+  { key: "github", label: "GitHub Analyzer", icon: Github, group: "Career Hub", box: true, mono: true },
+  { key: "skillgap", label: "Skill Gap", icon: Target, group: "Career Hub", box: true, mono: true },
+  { key: "courses", label: "Courses", icon: GraduationCap, group: "Career Hub", box: true, mono: true },
+  { key: "certs", label: "Certifications", icon: Award, group: "Career Hub", box: true, mono: true },
+  { key: "projects", label: "Projects", icon: FolderGit2, group: "Career Hub", box: true, mono: true },
+  { key: "study", label: "Study Assistant", icon: Headphones, group: "Career Hub", box: true, mono: true },
   { key: "settings", label: "Settings", icon: SettingsIcon, group: "Account" },
 ];
 
@@ -71,6 +80,11 @@ export default function StudentPortal({ session, onSignOut }) {
         {active === "dashboard" && <Overview push={push} setActive={setActive} />}
         {active === "attendance" && <Attendance push={push} />}
         {active === "marks" && <Marks push={push} />}
+        {active === "assessments" && <Assessments />}
+        {active === "practicals" && <Practicals />}
+        {active === "university" && <UniversityExams />}
+        {active === "fees" && <FeePortal push={push} />}
+        {active === "careerhub" && <CareerHome nav={NAV} setActive={setActive} />}
         {active === "cms" && <CampusServices push={push} />}
         {active === "leave" && <LeaveDesk push={push} />}
         {active === "learning" && <LearningPath />}

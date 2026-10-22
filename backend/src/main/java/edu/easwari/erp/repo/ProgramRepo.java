@@ -8,4 +8,5 @@ public interface ProgramRepo extends JpaRepository<Program, Long> {
     Optional<Program> findByCode(String code);
 
     boolean existsByDepartmentId(Long departmentId);
+    java.util.List<Program> findByDepartmentId(Long departmentId);
 }

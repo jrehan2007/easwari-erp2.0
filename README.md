@@ -43,13 +43,20 @@ server at `http://<your-laptop-ip>:5173`.
 
 ## Sign-in
 
-| Role | Username | Password |
-|---|---|---|
-| Student | `CSE25001` | `Student@123` |
-| Faculty | `faculty` | `Faculty@123` |
-| Administration | `admin` | `Admin@123` |
+A fresh database (default `SEED_MODE=minimal`) contains only the administrator,
+`admin` / `Admin@123`. Accounts created from the Admin portal get a random
+one-time password, shown once with a copy button.
 
-Students sign in with their roll number, staff with their employee code.
+To load a fully populated college instead (5 departments, 25 faculty including
+the HODs, 10 classes, 59 students, a semester of attendance, marks, university
+results and fees), start the backend once on an empty `backend/data/`:
+
+```bash
+cd backend && rm -rf data && SEED_MODE=full mvn spring-boot:run
+```
+
+Every seeded login is written to `backend/data/seed-credentials.csv` (git-ignored).
+Students sign in with their roll number, staff with their employee code (e.g. `EEC-CSE01`).
 
 ---
 

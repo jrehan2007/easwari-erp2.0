@@ -30,6 +30,7 @@ class MarksServiceTest {
     @Mock private SubjectOfferingRepo offeringRepo;
     @Mock private FacultyRepo facultyRepo;
     @Mock private AuditService audit;
+    @Mock private UniversityResultRepo resultRepo;
 
     @InjectMocks private MarksService marksService;
 

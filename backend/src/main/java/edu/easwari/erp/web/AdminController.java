@@ -59,6 +59,16 @@ public class AdminController {
         return adminService.createClassSection(currentUser.get(), req);
     }
 
+    @GetMapping("/departments/{id}")
+    public DepartmentDetail departmentDetail(@PathVariable Long id) {
+        return adminService.departmentDetail(id);
+    }
+
+    @PatchMapping("/departments/{id}")
+    public DepartmentSummary updateDepartment(@PathVariable Long id, @RequestBody UpdateDepartmentRequest req) {
+        return adminService.updateDepartment(currentUser.get(), id, req);
+    }
+
     @GetMapping("/departments")
     public List<DepartmentSummary> departments() {
         return adminService.listDepartments();

@@ -8,7 +8,8 @@ import { Card, Badge, Button, SectionHead, Progress, EmptyState, Field, Spinner 
 import CodeSlots from "../components/CodeSlots";
 import { useStore } from "../lib/store";
 import { ROLES, COURSES, COURSE_CATS, PROJECTS } from "../lib/careerData";
-import { analyzeResume, recommendRoles, matchSkills, analyzeGithub, summarize, keyTerms, makeQuiz } from "../lib/analyze";
+import { resumeReport, recommendRoles, matchSkills, analyzeGithub, summarize, keyTerms, makeQuiz } from "../lib/analyze";
+import { readPdf } from "../lib/pdf";
 import { api } from "../lib/api";
 import { markQuickCode } from "./Welcome";
 
@@ -52,75 +53,187 @@ function saveText(name, text) {
   const a = document.createElement("a"); a.href = url; a.download = name; a.click(); URL.revokeObjectURL(url);
 }
 
+/* ───────────────────────── Career Hub home ───────────────────────── */
+const BLURBS = {
+  resume: "Upload your resume PDF. Get a score, strengths, gaps and an internship / placement verdict.",
+  github: "Score your public GitHub profile the way a recruiter reads it.",
+  skillgap: "Compare your skills with a target role and see what to learn next.",
+  courses: "Curated free courses by track.",
+  certs: "Track certifications and achievements in one place.",
+  projects: "Project blueprints that stand out on a resume.",
+  study: "Summaries, key terms and quick quizzes from your notes.",
+};
+export function CareerHome({ nav, setActive }) {
+  const tools = nav.filter((n) => n.group === "Career Hub" && n.key !== "careerhub");
+  return (
+    <div>
+      <Title sub="Everything for internships and placements, in one place. The Career Hub is shown in black and white so it reads like a focused workspace.">Career Hub</Title>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }}>
+        {tools.map((tool) => (
+          <button key={tool.key} onClick={() => setActive(tool.key)} className="sv-btn sv-lift"
+            style={{ textAlign: "left", padding: 18, borderRadius: 14, cursor: "pointer", background: "#fff",
+              border: "1.5px solid #111", boxShadow: "4px 4px 0 #111", color: "#111", minHeight: 140 }}>
+            <span style={{ width: 40, height: 40, borderRadius: 10, background: "#111", color: "#fff", display: "flex",
+              alignItems: "center", justifyContent: "center", marginBottom: 12 }}><tool.icon size={19} /></span>
+            <div style={{ fontFamily: FONT_D, fontSize: 17, fontWeight: 700 }}>{tool.label}</div>
+            <div style={{ fontSize: 12.5, color: "#333", marginTop: 5, lineHeight: 1.5 }}>{BLURBS[tool.key]}</div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ───────────────────────── Resume Analyzer ───────────────────────── */
 export function ResumeAnalyzer({ session, push }) {
-  const [state, setState, storeErr] = useStore(session.username, "resume", { text: "", role: "fullstack", analysed: false });
+  const [state, setState, storeErr] = useStore(session.username, "resume", { text: "", role: "fullstack", analysed: false, meta: null });
   const role = ROLES.find((r) => r.key === state.role) || ROLES[0];
-  const result = useMemo(() => (state.analysed && state.text.trim() ? analyzeResume(state.text, role) : null), [state, role]);
+  // An uploaded PDF always gets a report, even with no text: the report is what explains a scanned file.
+  const result = useMemo(() => (state.analysed && (state.text.trim() || state.meta) ? resumeReport(state.text, role, state.meta) : null), [state, role]);
   const recs = useMemo(() => (state.text.trim() ? recommendRoles(state.text).slice(0, 3) : []), [state.text]);
   const fileRef = useRef(null);
+  const [reading, setReading] = useState(false);
+  const [drag, setDrag] = useState(false);
+  const [pasteOpen, setPasteOpen] = useState(false);
 
-  async function onFile(e) {
-    const f = e.target.files?.[0]; if (!f) return;
-    if (!/\.(txt|md)$/i.test(f.name)) { push({ title: "Use a text file", body: "Upload a .txt or .md file, or paste the resume text. PDF and Word files can't be read in the browser yet.", tone: "warning" }); return; }
-    setState({ ...state, text: await readText(f), analysed: false });
+  async function onFile(f) {
+    if (!f) return;
+    if (!/\.pdf$/i.test(f.name) && f.type !== "application/pdf") {
+      push({ title: "Upload a PDF", body: "Choose your resume as a .pdf file.", tone: "warning" }); return;
+    }
+    if (f.size > 10 * 1024 * 1024) { push({ title: "File too large", body: "Use a PDF under 10 MB.", tone: "warning" }); return; }
+    setReading(true);
+    try {
+      const { text, meta } = await readPdf(f);
+      setState({ ...state, text, meta, analysed: true });
+      if (meta.chars < 50) push({ title: "No text found", body: "This PDF looks like a scanned image. The report explains how to fix it.", tone: "warning" });
+    } catch (e) {
+      push({ title: "Couldn't read that PDF", body: e?.name === "PasswordException" ? "The PDF is password-protected. Remove the password and try again." : "The file may be damaged. Export it again and retry.", tone: "danger" });
+    } finally { setReading(false); if (fileRef.current) fileRef.current.value = ""; }
   }
+
   const report = () => result && saveText("resume-report.txt",
-    `Resume report (${role.title})\nOverall ATS score: ${result.overall}/100\nATS compatibility: ${result.ats}%\nContent quality: ${result.content}%\nFormatting: ${result.format}%\nKeyword optimisation: ${result.keywords}%\n\nSkills found: ${result.found.join(", ") || "none"}\nSkills missing: ${result.missing.join(", ") || "none"}\n\nImprove:\n- ${result.tips.join("\n- ")}\n`);
+    `Resume report (${role.title})${state.meta ? ` · ${state.meta.fileName}` : ""}\nScore: ${result.score}/100\n` +
+    `Internship: ${result.internship.ready ? "Ready" : "Not yet — " + result.internship.reasons.join("; ")}\n` +
+    `Placement: ${result.placement.ready ? "Ready" : "Not yet — " + result.placement.reasons.join("; ")}\n\n` +
+    `Pros:\n- ${result.pros.join("\n- ")}\n\nCons:\n- ${result.cons.join("\n- ") || "none"}\n\nUpgrade plan:\n- ${result.upgrades.join("\n- ")}\n\n` +
+    `ATS ${result.ats}% · Content ${result.content}% · Formatting ${result.format}% · Keywords ${result.keywords}%\n`);
+
+  const Verdict = ({ label, v }) => (
+    <div style={{ flex: 1, minWidth: 220, padding: "13px 15px", borderRadius: 12, border: `1.5px solid ${v.ready ? t.success : t.danger}`,
+      background: v.ready ? t.successSoft : t.dangerSoft }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 7, fontWeight: 800, fontSize: 13.5, color: v.ready ? t.success : t.danger }}>
+        {v.ready ? <Check size={16} /> : <AlertTriangle size={16} />} {label}: {v.ready ? "Ready" : "Not yet"}
+      </div>
+      <div style={{ fontSize: 12, color: t.textDim, marginTop: 5, lineHeight: 1.5 }}>
+        {v.ready ? "This resume meets the bar recruiters usually apply." : `Fix: ${v.reasons.join("; ")}.`}
+      </div>
+    </div>
+  );
+  const List = ({ icon: Icon, title, items, tone, empty }) => (
+    <Card lift={false} style={{ padding: 18 }}>
+      <SectionHead icon={Icon} title={`${title} (${items.length})`} />
+      {items.length ? (
+        <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12.5, lineHeight: 1.75, color: tone }}>
+          {items.map((x) => <li key={x}><span style={{ color: t.text }}>{x}</span></li>)}
+        </ul>
+      ) : <div style={{ fontSize: 12.5, color: t.textDim }}>{empty}</div>}
+    </Card>
+  );
 
   return (
     <div>
-      <Title sub="Paste your resume text. The score is computed in your browser; nothing is uploaded.">Resume Analyzer</Title>
+      <Title sub="Upload your resume as a PDF. It is read in your browser and never uploaded.">Resume Analyzer</Title>
       <Card lift={false} style={{ padding: 18, marginBottom: 16 }}>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12, alignItems: "center" }}>
-          <RoleSelect value={state.role} onChange={(v) => setState({ ...state, role: v, analysed: false })} />
-          <input ref={fileRef} type="file" accept=".txt,.md" onChange={onFile} hidden />
-          <Button variant="ghost" icon={Upload} onClick={() => fileRef.current?.click()}>Upload .txt</Button>
+          <span style={{ fontSize: 12, color: t.textDim }}>Target role</span>
+          <RoleSelect value={state.role} onChange={(v) => setState({ ...state, role: v })} />
         </div>
-        <textarea value={state.text} onChange={(e) => setState({ ...state, text: e.target.value, analysed: false })} rows={10}
-          aria-label="Resume text" placeholder="Paste your resume here: contact line, summary, education, projects, skills, certifications…"
-          style={{ ...input, resize: "vertical", fontFamily: FONT_M, fontSize: 12.5, lineHeight: 1.5 }} />
+        <input ref={fileRef} type="file" accept="application/pdf,.pdf" onChange={(e) => onFile(e.target.files?.[0])} hidden aria-label="Resume PDF" />
+        <div role="button" tabIndex={0} onClick={() => !reading && fileRef.current?.click()}
+          onKeyDown={(e) => e.key === "Enter" && fileRef.current?.click()}
+          onDragOver={(e) => { e.preventDefault(); setDrag(true); }} onDragLeave={() => setDrag(false)}
+          onDrop={(e) => { e.preventDefault(); setDrag(false); onFile(e.dataTransfer.files?.[0]); }}
+          style={{ border: `2px dashed ${drag ? t.primary : t.border}`, borderRadius: 14, padding: "26px 18px", textAlign: "center",
+            cursor: reading ? "wait" : "pointer", background: drag ? t.primarySoft : "rgba(255,255,255,.6)" }}>
+          {reading ? <><Spinner size={22} /><div style={{ fontSize: 13, marginTop: 10 }}>Reading your PDF…</div></> : (
+            <>
+              <Upload size={26} color={t.primary} />
+              <div style={{ fontFamily: FONT_D, fontSize: 17, fontWeight: 700, marginTop: 8 }}>
+                {state.meta ? "Upload a new version" : "Drop your resume PDF here"}</div>
+              <div style={{ fontSize: 12, color: t.textDim, marginTop: 4 }}>or click to choose a file · PDF only</div>
+              {state.meta && (
+                <div style={{ marginTop: 12, display: "inline-flex", gap: 8, alignItems: "center", padding: "6px 11px", borderRadius: 9,
+                  background: "#fff", border: `1px solid ${t.border}`, fontSize: 12 }}>
+                  <FileText size={14} color={t.primary} /> <strong>{state.meta.fileName}</strong>
+                  <span style={{ color: t.textDim }}>· {state.meta.pages} page{state.meta.pages > 1 ? "s" : ""} · {state.meta.sizeKB} KB</span>
+                </div>
+              )}
+            </>
+          )}
+        </div>
         <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap", alignItems: "center" }}>
-          <Button icon={RefreshCw} disabled={!state.text.trim()} onClick={() => setState({ ...state, analysed: true })}>Analyze resume</Button>
           {result && <Button variant="ghost" icon={Download} onClick={report}>Download report</Button>}
+          <button className="sv-btn" onClick={() => setPasteOpen(!pasteOpen)} style={{ background: "none", border: "none", color: t.primary,
+            fontSize: 12, fontWeight: 700, cursor: "pointer", textDecoration: "underline", padding: 0 }}>
+            {pasteOpen ? "Hide text box" : "No PDF? Paste the text instead"}</button>
           {storeErr && <span style={{ fontSize: 11.5, color: t.danger }}>{storeErr}</span>}
         </div>
+        {pasteOpen && (
+          <div style={{ marginTop: 12 }}>
+            <textarea value={state.text} onChange={(e) => setState({ ...state, text: e.target.value, meta: null, analysed: false })} rows={9}
+              aria-label="Resume text" placeholder="Paste your resume: contact line, summary, education, projects, skills, certifications…"
+              style={{ ...input, resize: "vertical", fontFamily: FONT_M, fontSize: 12.5, lineHeight: 1.5 }} />
+            <div style={{ marginTop: 10 }}>
+              <Button icon={RefreshCw} disabled={!state.text.trim()} onClick={() => setState({ ...state, analysed: true })}>Analyze text</Button>
+            </div>
+          </div>
+        )}
       </Card>
 
-      {!result ? <Card lift={false} style={{ padding: 8 }}><EmptyState icon={FileText} title="No analysis yet" body="Paste your resume and press Analyze." /></Card> : (
+      {!result ? <Card lift={false} style={{ padding: 8 }}><EmptyState icon={FileText} title="No analysis yet"
+        body="Upload your resume PDF. The score, pros, cons and an upgrade plan appear here." /></Card> : (
         <>
           <Card lift={false} style={{ padding: 18, marginBottom: 16 }}>
             <div style={{ display: "flex", gap: 22, alignItems: "center", flexWrap: "wrap" }}>
-              <Ring value={result.overall} size={110} />
+              <Ring value={result.score} size={116} />
               <div style={{ flex: 1, minWidth: 220 }}>
-                <div style={{ fontSize: 12, color: t.textDim }}>Overall score for <strong>{role.title}</strong></div>
+                <div style={{ fontSize: 12, color: t.textDim }}>Resume score for <strong>{role.title}</strong></div>
                 <div style={{ fontFamily: FONT_D, fontSize: 24, fontWeight: 700 }}>
-                  {result.overall >= 75 ? "Strong resume" : result.overall >= 50 ? "Decent, with gaps" : "Needs work"}
+                  {result.score >= 75 ? "Strong resume" : result.score >= 55 ? "Good base, a few gaps" : "Needs work before applying"}
                 </div>
-                <div style={{ fontSize: 12.5, color: t.textDim, marginTop: 4 }}>{result.words} words · role match {result.keywords}%</div>
+                <div style={{ fontSize: 12.5, color: t.textDim, marginTop: 4 }}>
+                  {result.words} words{state.meta ? ` · ${state.meta.pages} page${state.meta.pages > 1 ? "s" : ""}` : ""} · role match {result.keywords}%
+                </div>
                 <div style={{ marginTop: 10, display: "flex", gap: 7, flexWrap: "wrap" }}>
                   <span style={{ fontSize: 11.5, color: t.textFaint }}>Best-fit roles:</span>
                   {recs.map((r) => <Badge key={r.role.key} tone="primary">{r.role.title} {r.pct}%</Badge>)}
                 </div>
               </div>
             </div>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 16 }}>
+              <Verdict label="Internships" v={result.internship} />
+              <Verdict label="Placements" v={result.placement} />
+            </div>
           </Card>
           <div className="sv-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
             <Bar label="ATS compatibility" value={result.ats} /><Bar label="Content quality" value={result.content} />
             <Bar label="Formatting" value={result.format} /><Bar label="Keyword optimisation" value={result.keywords} />
           </div>
+          <div className="sv-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+            <List icon={Check} title="Pros" items={result.pros} tone={t.success} empty="Nothing stands out yet." />
+            <List icon={AlertTriangle} title="Cons" items={result.cons} tone={t.danger} empty="No major problems found." />
+          </div>
           <div className="sv-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <List icon={Star} title="Upgrade plan" items={result.upgrades} tone={t.gold} empty="Keep it updated as you add projects." />
             <Card lift={false} style={{ padding: 18 }}>
-              <SectionHead icon={AlertTriangle} title="What to improve" />
-              {result.tips.length ? <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12.5, lineHeight: 1.7 }}>{result.tips.map((x) => <li key={x}>{x}</li>)}</ul>
-                : <div style={{ fontSize: 12.5 }}>Nothing major. Keep the numbers and verbs strong.</div>}
-            </Card>
-            <Card lift={false} style={{ padding: 18 }}>
-              <SectionHead icon={Check} title="Skills detected for this role" />
+              <SectionHead icon={Target} title={`Skills for ${role.title}`} />
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {result.found.map((s) => <Badge key={s} tone="success">{s}</Badge>)}
-                {result.missing.map((s) => <Badge key={s} tone="danger">{s}</Badge>)}
+                {result.found.map((s) => <Badge key={s} tone="success">✓ {s}</Badge>)}
+                {result.missing.map((s) => <Badge key={s} tone="danger" style={{ borderStyle: "dashed" }}>✗ {s}</Badge>)}
               </div>
+              {/* Marked with symbols, not colour alone: the Career Hub is shown in black and white. */}
+              <div style={{ fontSize: 11.5, color: t.textDim, marginTop: 10 }}>✓ found in your resume · ✗ worth learning and adding</div>
             </Card>
           </div>
         </>

@@ -17,7 +17,8 @@ public class Assessment {
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "subject_offering_id", nullable = false)
     private SubjectOffering subjectOffering;
 
-    @Enumerated(EnumType.STRING) @Column(nullable = false, length = 16)
+    // 24, not 16: GROUP_PRESENTATION (18 characters) did not fit.
+    @Enumerated(EnumType.STRING) @Column(nullable = false, length = 24)
     private AssessmentType type;
 
     @Builder.Default private int maxMarks = 30;
