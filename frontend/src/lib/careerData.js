@@ -1,0 +1,96 @@
+/** Target roles and the skills each one expects. aliases are matched case-insensitively as whole words. */
+export const ROLES = [
+  { key: "swe", title: "Software Engineer", skills: [
+    ["Data Structures", ["data structures", "dsa"]], ["Algorithms", ["algorithms"]], ["Java", ["java"]], ["Python", ["python"]],
+    ["C++", ["c++"]], ["SQL", ["sql", "mysql", "postgresql"]], ["Git", ["git", "github"]], ["REST APIs", ["rest", "api", "apis"]],
+    ["Object-Oriented Design", ["oop", "object oriented", "object-oriented", "design patterns"]], ["Operating Systems", ["operating systems"]],
+    ["Testing", ["junit", "unit testing", "testing", "pytest"]], ["System Design", ["system design"]] ] },
+  { key: "fullstack", title: "Full-Stack Developer", skills: [
+    ["HTML/CSS", ["html", "css"]], ["JavaScript", ["javascript", "js", "es6"]], ["TypeScript", ["typescript"]], ["React", ["react", "reactjs"]],
+    ["Node.js", ["node", "nodejs", "node.js", "express"]], ["Spring Boot", ["spring boot", "spring"]], ["SQL", ["sql", "mysql", "postgresql"]],
+    ["MongoDB", ["mongodb", "nosql"]], ["REST APIs", ["rest", "api", "apis"]], ["Git", ["git", "github"]], ["Docker", ["docker"]],
+    ["Authentication", ["jwt", "oauth", "authentication"]] ] },
+  { key: "data", title: "Data Scientist / ML Engineer", skills: [
+    ["Python", ["python"]], ["Statistics", ["statistics", "probability"]], ["Pandas", ["pandas"]], ["NumPy", ["numpy"]],
+    ["Machine Learning", ["machine learning", "ml", "scikit-learn", "sklearn"]], ["Deep Learning", ["deep learning", "tensorflow", "pytorch", "keras"]],
+    ["SQL", ["sql"]], ["Data Visualisation", ["matplotlib", "seaborn", "tableau", "power bi", "visualization", "visualisation"]],
+    ["Feature Engineering", ["feature engineering"]], ["Git", ["git", "github"]], ["FastAPI / Flask", ["fastapi", "flask"]] ] },
+  { key: "security", title: "Cybersecurity Analyst", skills: [
+    ["Networking", ["networking", "tcp/ip", "tcp", "dns", "http"]], ["Linux", ["linux", "bash"]], ["Python", ["python"]],
+    ["Web Security (OWASP)", ["owasp", "xss", "sql injection", "csrf"]], ["Penetration Testing", ["penetration testing", "pentest", "burp suite", "metasploit"]],
+    ["Cryptography", ["cryptography", "encryption", "hashing"]], ["Wireshark", ["wireshark", "nmap"]], ["CTFs", ["ctf", "tryhackme", "hackthebox"]],
+    ["Incident Response", ["incident response", "siem", "soc"]], ["Cloud Security", ["cloud security", "iam"]] ] },
+  { key: "devops", title: "DevOps / Cloud Engineer", skills: [
+    ["Linux", ["linux", "bash", "shell"]], ["Docker", ["docker", "containers"]], ["Kubernetes", ["kubernetes", "k8s"]], ["CI/CD", ["ci/cd", "github actions", "jenkins", "gitlab ci"]],
+    ["Cloud (AWS/Azure/GCP)", ["aws", "azure", "gcp", "google cloud"]], ["Terraform", ["terraform", "infrastructure as code"]], ["Git", ["git", "github"]],
+    ["Networking", ["networking", "dns", "load balancer"]], ["Monitoring", ["prometheus", "grafana", "monitoring"]], ["Python / Scripting", ["python", "scripting"]] ] },
+  { key: "mobile", title: "Mobile App Developer", skills: [
+    ["Dart / Flutter", ["flutter", "dart"]], ["Kotlin / Android", ["kotlin", "android"]], ["Swift / iOS", ["swift", "ios"]], ["React Native", ["react native"]],
+    ["REST APIs", ["rest", "api", "apis"]], ["Firebase", ["firebase"]], ["State Management", ["state management", "redux", "bloc", "provider"]], ["Git", ["git", "github"]],
+    ["UI/UX Basics", ["ui/ux", "figma", "material design"]], ["SQLite / Local storage", ["sqlite", "room"]] ] },
+];
+
+/** Free, real learning resources. certificate: true where the provider issues a free certificate. */
+export const COURSES = [
+  { id: "cs50x", title: "CS50x: Introduction to Computer Science", by: "Harvard", url: "https://cs50.harvard.edu/x/", cat: "Core CS", certificate: true, skills: ["Data Structures", "Algorithms", "C++", "SQL", "Python"] },
+  { id: "mit-6006", title: "Introduction to Algorithms (6.006)", by: "MIT OpenCourseWare", url: "https://ocw.mit.edu/courses/6-006-introduction-to-algorithms-spring-2020/", cat: "Core CS", certificate: false, skills: ["Algorithms", "Data Structures"] },
+  { id: "nptel", title: "NPTEL: engineering and CS courses", by: "IITs / IISc", url: "https://nptel.ac.in/", cat: "Core CS", certificate: true, skills: ["Operating Systems", "Networking", "Data Structures"] },
+  { id: "fcc", title: "freeCodeCamp: Responsive Web Design and JavaScript", by: "freeCodeCamp", url: "https://www.freecodecamp.org/learn", cat: "Frontend", certificate: true, skills: ["HTML/CSS", "JavaScript"] },
+  { id: "react", title: "Learn React", by: "react.dev", url: "https://react.dev/learn", cat: "Frontend", certificate: false, skills: ["React", "JavaScript"] },
+  { id: "odin", title: "The Odin Project: Full Stack JavaScript", by: "The Odin Project", url: "https://www.theodinproject.com/", cat: "Backend", certificate: false, skills: ["Node.js", "JavaScript", "Git", "HTML/CSS"] },
+  { id: "fso", title: "Full Stack Open", by: "University of Helsinki", url: "https://fullstackopen.com/en/", cat: "Backend", certificate: true, skills: ["React", "Node.js", "TypeScript", "MongoDB", "Authentication"] },
+  { id: "spring", title: "Spring Guides (Spring Boot)", by: "Spring", url: "https://spring.io/guides", cat: "Backend", certificate: false, skills: ["Spring Boot", "REST APIs", "Java", "Authentication"] },
+  { id: "sqlbolt", title: "SQLBolt: interactive SQL lessons", by: "SQLBolt", url: "https://sqlbolt.com/", cat: "Data & AI", certificate: false, skills: ["SQL"] },
+  { id: "kaggle", title: "Kaggle Learn: Python, Pandas, ML", by: "Kaggle", url: "https://www.kaggle.com/learn", cat: "Data & AI", certificate: true, skills: ["Python", "Pandas", "Machine Learning", "Data Visualisation"] },
+  { id: "mlcc", title: "Machine Learning Crash Course", by: "Google", url: "https://developers.google.com/machine-learning/crash-course", cat: "Data & AI", certificate: false, skills: ["Machine Learning", "Feature Engineering", "Statistics"] },
+  { id: "fastai", title: "Practical Deep Learning for Coders", by: "fast.ai", url: "https://course.fast.ai/", cat: "Data & AI", certificate: false, skills: ["Deep Learning", "Python"] },
+  { id: "docker", title: "Docker: Get Started", by: "Docker", url: "https://docs.docker.com/get-started/", cat: "DevOps & Cloud", certificate: false, skills: ["Docker"] },
+  { id: "k8s", title: "Kubernetes Basics", by: "kubernetes.io", url: "https://kubernetes.io/docs/tutorials/kubernetes-basics/", cat: "DevOps & Cloud", certificate: false, skills: ["Kubernetes"] },
+  { id: "az900", title: "Microsoft Azure Fundamentals (AZ-900) learning path", by: "Microsoft Learn", url: "https://learn.microsoft.com/en-us/training/courses/az-900t00", cat: "DevOps & Cloud", certificate: true, skills: ["Cloud (AWS/Azure/GCP)"] },
+  { id: "progit", title: "Pro Git (book)", by: "git-scm.com", url: "https://git-scm.com/book/en/v2", cat: "Core CS", certificate: false, skills: ["Git"] },
+  { id: "bandit", title: "OverTheWire: Bandit (Linux and security wargame)", by: "OverTheWire", url: "https://overthewire.org/wargames/bandit/", cat: "Security", certificate: false, skills: ["Linux", "CTFs", "Networking"] },
+  { id: "thm", title: "TryHackMe: Pre-Security and Jr Penetration Tester paths", by: "TryHackMe", url: "https://tryhackme.com/", cat: "Security", certificate: true, skills: ["Penetration Testing", "Networking", "Web Security (OWASP)", "CTFs"] },
+  { id: "cs50cyber", title: "CS50's Introduction to Cybersecurity", by: "Harvard", url: "https://cs50.harvard.edu/cybersecurity/", cat: "Security", certificate: true, skills: ["Cryptography", "Web Security (OWASP)"] },
+  { id: "flutter", title: "Flutter: Write your first app codelab", by: "flutter.dev", url: "https://docs.flutter.dev/get-started/codelab", cat: "Mobile", certificate: false, skills: ["Dart / Flutter", "UI/UX Basics"] },
+];
+export const COURSE_CATS = ["All", "Core CS", "Frontend", "Backend", "Data & AI", "DevOps & Cloud", "Security", "Mobile"];
+
+/** Project blueprints to build for a portfolio, by role. */
+export const PROJECTS = [
+  { id: "p-url", role: "swe", title: "URL Shortener with Analytics", level: "Easy", stack: ["Java/Spring Boot or Node", "PostgreSQL", "Redis"],
+    brief: "Create short links, redirect them, and count clicks per day.",
+    deliverables: ["REST API for create/redirect/stats", "Unique-code generation without collisions", "Rate limiting on link creation", "Unit tests for the code generator"] },
+  { id: "p-kv", role: "swe", title: "In-memory Key-Value Store", level: "Hard", stack: ["Java or C++", "Sockets"],
+    brief: "A small Redis-style server that speaks a text protocol over TCP.",
+    deliverables: ["GET/SET/DEL with TTL expiry", "Concurrent clients", "Append-only log for recovery", "Benchmarks in the README"] },
+  { id: "p-task", role: "fullstack", title: "Team Task Board", level: "Medium", stack: ["React", "Node or Spring Boot", "PostgreSQL"],
+    brief: "A Kanban board with accounts, boards, drag-and-drop and live updates.",
+    deliverables: ["JWT login and role checks", "Drag-and-drop cards that persist", "Real-time sync using WebSockets", "Deployed demo link"] },
+  { id: "p-shop", role: "fullstack", title: "Campus Marketplace", level: "Medium", stack: ["React", "REST API", "Image storage"],
+    brief: "Students list and buy second-hand books and gear inside the college.",
+    deliverables: ["Listings with photos and search", "Chat or contact request", "Admin moderation view", "Responsive on phones"] },
+  { id: "p-churn", role: "data", title: "Student Dropout Risk Predictor", level: "Medium", stack: ["Python", "scikit-learn", "FastAPI"],
+    brief: "Train a model on attendance and marks features and serve predictions.",
+    deliverables: ["Clean feature pipeline", "Model comparison with a proper train/test split", "FastAPI endpoint", "Explanation of the top factors"] },
+  { id: "p-nlp", role: "data", title: "Resume-to-Job Matcher", level: "Hard", stack: ["Python", "TF-IDF or embeddings"],
+    brief: "Rank job descriptions against a resume and explain the match.",
+    deliverables: ["Text cleaning and skill extraction", "Ranking with a similarity score", "Evaluation on hand-labelled pairs", "Small web UI"] },
+  { id: "p-scan", role: "security", title: "Port and Service Scanner", level: "Easy", stack: ["Python", "sockets"],
+    brief: "Scan a host you own, grab banners and flag risky open services.",
+    deliverables: ["Multi-threaded scan", "Banner grabbing", "Report in JSON and HTML", "A clear legal-use note in the README"] },
+  { id: "p-vuln", role: "security", title: "Vulnerable App and Its Fix", level: "Medium", stack: ["Any web stack", "OWASP Top 10"],
+    brief: "Build a small app with three deliberate flaws, exploit them, then patch them.",
+    deliverables: ["SQL injection, XSS and broken access control demos", "Write-up of each exploit", "Patched version with tests", "Before/after diff"] },
+  { id: "p-ci", role: "devops", title: "CI/CD Pipeline for a Web App", level: "Medium", stack: ["GitHub Actions", "Docker", "a cloud VM"],
+    brief: "Every push builds, tests, containerises and deploys the app.",
+    deliverables: ["Dockerfile and compose file", "Pipeline with test and build stages", "Automatic deploy on main", "Rollback instructions"] },
+  { id: "p-mon", role: "devops", title: "Monitoring Stack", level: "Hard", stack: ["Prometheus", "Grafana", "Kubernetes or Docker"],
+    brief: "Monitor a sample service with dashboards and alerts.",
+    deliverables: ["Metrics endpoint in the app", "Dashboards for latency and errors", "Alert rule with a test", "Runbook"] },
+  { id: "p-habit", role: "mobile", title: "Habit Tracker", level: "Easy", stack: ["Flutter or Kotlin", "SQLite"],
+    brief: "Daily habits with streaks and reminders that work offline.",
+    deliverables: ["Local database", "Streak logic with tests", "Notifications", "Light and dark theme"] },
+  { id: "p-bus", role: "mobile", title: "Campus Bus Tracker", level: "Medium", stack: ["Flutter", "Firebase", "Maps"],
+    brief: "Show where the college buses are, live, to students.",
+    deliverables: ["Driver app that shares location", "Student map view", "Route and ETA list", "Battery-aware updates"] },
+];

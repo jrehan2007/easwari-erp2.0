@@ -1,0 +1,70 @@
+# Default profile = local. Everything embedded, nothing to install.
+spring:
+  application:
+    name: easwari-erp
+  profiles:
+    active: local
+  jpa:
+    hibernate:
+      ddl-auto: update   # keep data between restarts; delete backend/data/ to start fresh
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 500
+        order_inserts: true
+        order_updates: true
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+server:
+  port: ${PORT:8080}
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:easwari-erp-local-dev-secret-key-change-in-production-min-256-bits}
+    expiry-minutes: 480
+  ml:
+    base-url: ${ML_BASE_URL:http://localhost:8000}
+  cors:
+    allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:4173,http://127.0.0.1:5173,http://127.0.0.1:4173,http://0.0.0.0:5173,http://0.0.0.0:4173}
+  seed:
+    enabled: ${SEED_ENABLED:true}
+    mode: ${SEED_MODE:minimal}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+    url: jdbc:h2:file:./data/easwari;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+---
+# Funded-stage target. Only connection details change.
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  h2:
+    console:
+      enabled: false
+app:
+  seed:
+    enabled: false

@@ -1,0 +1,24 @@
+# Backend
+backend/target/
+backend/data/
+# runtime files: leave-proof uploads from users, local run logs
+backend/uploads/
+backend/.logs/
+*.log
+*.class
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Python
+ml-service/.venv/
+ml-service/__pycache__/
+**/__pycache__/
+
+# OS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/

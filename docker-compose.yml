@@ -1,0 +1,42 @@
+# One command brings up the whole system: docker compose up --build
+# Nothing else needs installing on the demo machine.
+services:
+
+  scoring:
+    build: ./ml-service
+    container_name: easwari-scoring
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: easwari-backend
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      ML_BASE_URL: http://scoring:8000
+      CORS_ORIGINS: http://localhost:5173,http://localhost:4173
+      SEED_ENABLED: "true"
+    volumes:
+      - erp-data:/app/data          # H2 file survives container restarts
+    depends_on:
+      scoring:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    container_name: easwari-frontend
+    ports:
+      - "5173:80"
+    # No API base needed: nginx proxies /api straight through to the backend.
+    depends_on:
+      - backend
+
+volumes:
+  erp-data:
