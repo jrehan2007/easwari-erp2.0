@@ -19,7 +19,7 @@ export default function Shell({ nav, active, setActive, session, onSignOut, chil
   // every other page keeps the light theme. Children get it through ThemeContext.
   const career = !!current?.career;
   const t = career ? careerTheme : baseTheme;
-  const ink = career ? careerTheme.text : "#000000";
+  const ink = career ? careerTheme.text : baseTheme.text;
   const panel = (a) => (career ? `rgba(14,14,15,${a + 0.2})` : `rgba(255,255,255,${a})`);
   useEffect(() => {
     // Overscroll and the area behind the page follow the theme too.
@@ -77,8 +77,8 @@ export default function Shell({ nav, active, setActive, session, onSignOut, chil
                 <ChevronDown size={14} style={{ transform: showItems ? "rotate(180deg)" : "none", transition: "transform .2s ease" }} />
               </div>
             ) : !(collapsed && !isMobile) && (
-              <div style={{ fontFamily: FONT_M, fontSize: 8.5, letterSpacing: "0.16em",
-                textTransform: "uppercase", color: ink, padding: "6px 11px 5px" }}>{group}</div>
+              <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: "0.06em",
+                textTransform: "uppercase", color: t.textFaint, padding: "8px 11px 4px" }}>{group}</div>
             )}
             {showItems && (boxed && !(collapsed && !isMobile) ? items.slice(1) : items).map((item) => {
               const on = active === item.key;
@@ -97,12 +97,12 @@ export default function Shell({ nav, active, setActive, session, onSignOut, chil
                   }}>
                   {on && !(collapsed && !isMobile) && (
                     <span style={{ position: "absolute", left: 0, top: "50%", transform: "translateY(-50%)",
-                      width: 3, height: 18, background: t.gold, borderRadius: "0 3px 3px 0" }} />
+                      width: 3, height: 18, background: career ? t.gold : t.primary, borderRadius: "0 3px 3px 0" }} />
                   )}
-                  <item.icon size={16} color={on ? t.gold : ink} style={{ flexShrink: 0 }} />
+                  <item.icon size={16} color={on ? (career ? t.gold : t.primary) : t.textDim} style={{ flexShrink: 0 }} />
                   {!(collapsed && !isMobile) && (
-                    <span style={{ fontSize: 12.5, fontWeight: on ? 700 : 500, whiteSpace: "nowrap",
-                      overflow: "hidden", textOverflow: "ellipsis", color: ink }}>{item.label}</span>
+                    <span style={{ fontSize: 13, fontWeight: on ? 600 : 500, whiteSpace: "nowrap",
+                      overflow: "hidden", textOverflow: "ellipsis", color: on ? t.text : t.textDim }}>{item.label}</span>
                   )}
                 </div>
               );
@@ -136,16 +136,15 @@ export default function Shell({ nav, active, setActive, session, onSignOut, chil
       color: ink, position: "relative",
       background: career
         ? "radial-gradient(90% 60% at 100% 0%, rgba(212,175,55,0.10) 0%, transparent 60%), linear-gradient(160deg,#0b0b0c 0%,#0e0d0b 60%,#0a0a0b 100%)"
-        : "linear-gradient(160deg,#f6f8f5 0%,#eef3ee 55%,#f4f2e6 100%)",
+        : t.bg,
       transition: "background .4s ease" }}>
-      {/* Plain, professional ground with a soft live flow behind everything */}
-      <div aria-hidden="true" style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none", opacity: career ? 0.32 : 0.55 }}>
-        {career
-          ? <LiquidEther key="gold" colors={["#D4AF37", "#8a6d1f", "#f3d77a"]} intensity={0.7} mouseForce={12}
-              cursorSize={120} persistence={0.8} autoDemo autoSpeed={0.3} autoIntensity={1.4} intro={false} />
-          : <LiquidEther key="light" lightMode colors={["#1B5E3A", "#3fa86b", "#d9b43c"]} intensity={0.8} mouseForce={14}
-              cursorSize={120} persistence={0.8} autoDemo autoSpeed={0.35} autoIntensity={1.6} intro={false} />}
-      </div>
+      {/* A plain ground for the portal; only the Career Hub keeps a faint moving gold light. */}
+      {career && (
+        <div aria-hidden="true" style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none", opacity: 0.32 }}>
+          <LiquidEther key="gold" colors={["#D4AF37", "#8a6d1f", "#f3d77a"]} intensity={0.7} mouseForce={12}
+            cursorSize={120} persistence={0.8} autoDemo autoSpeed={0.3} autoIntensity={1.4} intro={false} />
+        </div>
+      )}
 
       <div className="sv-desktop-only" style={{ position: "relative", zIndex: 1 }}>{sidebar(false)}</div>
       <div className="sv-mobile-only">
@@ -174,9 +173,8 @@ export default function Shell({ nav, active, setActive, session, onSignOut, chil
           </div>
 
           <div className="sv-desktop-only" style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontFamily: FONT_M, fontSize: 9.5, letterSpacing: "0.15em",
-              textTransform: "uppercase", color: ink }}>{subtitle}</div>
-            <div style={{ fontSize: 12.5, color: ink, marginTop: 2 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: ink }}>{subtitle}</div>
+            <div style={{ fontSize: 12, color: t.textDim, marginTop: 1 }}>
               {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
             </div>
           </div>
@@ -185,7 +183,7 @@ export default function Shell({ nav, active, setActive, session, onSignOut, chil
             borderRadius: 10, background: panel(0.55), border: `1px solid ${t.border}`,
             flexShrink: 0, minHeight: 40 }}>
             <div style={{ width: 32, height: 32, borderRadius: 8,
-              background: `linear-gradient(140deg, ${t.primary}, ${t.gold})`, display: "flex",
+              background: t.primary, display: "flex",
               alignItems: "center", justifyContent: "center", color: t.onPrimary, fontSize: 11.5, fontWeight: 800 }}>
               {(session.displayName || session.username).split(" ").map((n) => n[0]).join("").slice(0, 2)}
             </div>
@@ -193,19 +191,28 @@ export default function Shell({ nav, active, setActive, session, onSignOut, chil
               <div style={{ fontSize: 11.5, fontWeight: 700, color: ink, lineHeight: 1.2 }}>
                 {session.displayName || session.username}
               </div>
-              <div style={{ fontFamily: FONT_M, fontSize: 9, color: ink }}>{session.username}</div>
+              <div style={{ fontSize: 11, color: t.textDim }}>{session.username}</div>
             </div>
           </div>
         </header>
 
         <main className="sv-scroll sv-main" style={{ padding: "20px 22px 60px", flex: 1 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 15, flexWrap: "wrap" }}>
-            <span style={{ fontFamily: FONT_M, fontSize: 10, letterSpacing: "0.12em",
-              textTransform: "uppercase", color: ink }}>{current?.group}</span>
-            <ChevronRight size={11} color={ink} />
-            <span style={{ fontFamily: FONT_M, fontSize: 10, letterSpacing: "0.12em",
-              textTransform: "uppercase", color: t.gold, fontWeight: 700 }}>{current?.label}</span>
-          </div>
+          {career ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 15, flexWrap: "wrap" }}>
+              <span style={{ fontFamily: FONT_M, fontSize: 10, letterSpacing: "0.12em",
+                textTransform: "uppercase", color: ink }}>{current?.group}</span>
+              <ChevronRight size={11} color={ink} />
+              <span style={{ fontFamily: FONT_M, fontSize: 10, letterSpacing: "0.12em",
+                textTransform: "uppercase", color: t.gold, fontWeight: 700 }}>{current?.label}</span>
+            </div>
+          ) : (
+            // A plain page title, like any well-run institutional site.
+            <div style={{ marginBottom: 18 }}>
+              <div style={{ fontSize: 12.5, color: t.textFaint }}>{current?.group}</div>
+              <h1 style={{ fontFamily: FONT_B, fontSize: 24, fontWeight: 650, letterSpacing: "-0.01em", margin: "2px 0 0", color: t.text }}>
+                {current?.label}</h1>
+            </div>
+          )}
 
           <ThemeContext.Provider value={t}>
             <div key={active} className="sv-fade" style={{ color: t.text }}>{children}</div>

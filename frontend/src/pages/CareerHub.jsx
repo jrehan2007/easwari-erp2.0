@@ -4,7 +4,7 @@ import {
   ExternalLink, Upload, Trash2, Search, Play, Square, Settings as SettingsIcon, Hash, AlertTriangle, Star,
 } from "lucide-react";
 // The Career Hub has its own black-and-gold palette; Shell provides the same palette to shared components.
-import { careerTheme as t, FONT_D, FONT_M } from "../lib/theme";
+import { careerTheme as t, FONT_SERIF as FONT_D, FONT_M } from "../lib/theme";
 import { Card, Badge, Button, SectionHead, Progress, EmptyState, Field, Spinner } from "../components/Shared";
 import { useStore } from "../lib/store";
 import { ROLES, COURSES, COURSE_CATS, PROJECTS } from "../lib/careerData";

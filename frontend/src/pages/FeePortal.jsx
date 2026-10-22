@@ -3,6 +3,7 @@ import { Wallet, Receipt, CheckCircle2, AlertTriangle, CreditCard, Smartphone, L
 import { theme as t, FONT_D, FONT_M, COLLEGE } from "../lib/theme";
 import { Card, Badge, Button, SectionHead, Skeleton, ErrorNote, Modal, Spinner } from "../components/Shared";
 import { api } from "../lib/api";
+import KpiTiles from "../components/KpiTiles";
 
 const inr = (n) => "₹" + Number(n).toLocaleString("en-IN");
 const ICON = { TUITION: GraduationCap, DEVELOPMENT: Landmark, TRANSPORT: Bus, HOSTEL: Home, MESS: Home, EXAM: FileText,
@@ -52,20 +53,14 @@ export default function FeePortal({ push }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div className="sv-grid-3" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
-        {[["Total billed", inr(data.billed), "all terms", "#2b5fa8", "#4f93e0"],
-          ["Paid", inr(data.paid), `${data.items.filter((i) => i.paid).length} items settled`, "#1B5E3A", "#35a86a"],
-          ["Due", inr(data.due), `${unpaid.length} item${unpaid.length === 1 ? "" : "s"} open`, "#7A630D", "#d9a81f"],
-          ["Overdue", inr(data.overdue), data.overdue ? "Pay now to avoid a fine" : "Nothing overdue", data.overdue ? "#a30f26" : "#5b3fa8", data.overdue ? "#e04a62" : "#8d6be0"],
-        ].map(([l, v, s, from, to]) => (
-          <div key={l} style={{ borderRadius: 16, padding: "16px 18px", color: "#fff", background: `linear-gradient(135deg, ${from}, ${to})`,
-            boxShadow: `0 10px 26px ${to}44` }}>
-            <div style={{ fontFamily: FONT_M, fontSize: 9.5, letterSpacing: "0.16em", textTransform: "uppercase", opacity: 0.9 }}>{l}</div>
-            <div style={{ fontFamily: FONT_D, fontSize: 26, fontWeight: 800, marginTop: 8 }}>{v}</div>
-            <div style={{ fontSize: 11.5, opacity: 0.92, marginTop: 3 }}>{s}</div>
-          </div>
-        ))}
-      </div>
+      <KpiTiles tiles={[
+        { label: "Total billed", value: inr(data.billed), sub: "All academic years", icon: Receipt },
+        { label: "Paid", value: inr(data.paid), sub: `${data.items.filter((i) => i.paid).length} items settled`, icon: CheckCircle2 },
+        { label: "Due", value: inr(data.due), sub: unpaid.length ? `${unpaid.length} item${unpaid.length === 1 ? "" : "s"} open` : "Nothing due", icon: Wallet,
+          tone: data.due ? "warning" : undefined },
+        { label: "Overdue", value: inr(data.overdue), sub: data.overdue ? "Pay now to avoid a late fine" : "Nothing overdue", icon: AlertTriangle,
+          tone: data.overdue ? "danger" : undefined },
+      ]} />
 
       <Card lift={false} style={{ padding: 18 }}>
         <SectionHead icon={Wallet} title="Pay fees" sub="Select what to pay. Payment here is simulated: it records the payment and issues a receipt."

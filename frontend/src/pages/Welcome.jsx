@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { GraduationCap, Users, ShieldCheck, ArrowRight, ArrowLeft, Eye, EyeOff, KeyRound, Hash } from "lucide-react";
-import { COLLEGE, FONT_D, FONT_B, FONT_M } from "../lib/theme";
+import { COLLEGE, FONT_SERIF as FONT_D, FONT_B, FONT_M } from "../lib/theme";
 import { CollegeMark, Spinner } from "../components/Shared";
 import LiquidEther from "../components/LiquidEther";
 import CodeSlots from "../components/CodeSlots";

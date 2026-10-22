@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { KeyRound, ArrowRight } from "lucide-react";
-import { theme as t, FONT_D, FONT_B } from "../lib/theme";
+import { theme as t, FONT_SERIF as FONT_D, FONT_B } from "../lib/theme";
 import { Button, Field, Spinner } from "../components/Shared";
 import { AuthBackdrop, ErrorBox } from "./Welcome";
 import { api } from "../lib/api";

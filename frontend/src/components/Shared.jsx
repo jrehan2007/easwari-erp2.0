@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { theme as t, COLLEGE, FONT_D, FONT_B, FONT_M } from "../lib/theme";
+import { theme as t, COLLEGE, FONT_D, FONT_B, FONT_M, FONT_SERIF } from "../lib/theme";
 
 /** The palette for everything below a provider: light by default, black and gold in the Career Hub. */
 export const ThemeContext = React.createContext(t);
@@ -17,7 +17,7 @@ export const GlobalStyle = () => (
     @keyframes svShimmer { 0%{background-position:-420px 0} 100%{background-position:420px 0} }
     @keyframes svDrift { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(3%,-3%) scale(1.08)} }
     @keyframes svSpin { to { transform: rotate(360deg) } }
-    .sv-stagger > * { animation: svUp .48s cubic-bezier(.2,.8,.2,1) both; }
+    .sv-stagger > * { animation: svIn .3s ease both; }
     .sv-stagger > *:nth-child(1){animation-delay:.02s}.sv-stagger > *:nth-child(2){animation-delay:.06s}
     .sv-stagger > *:nth-child(3){animation-delay:.10s}.sv-stagger > *:nth-child(4){animation-delay:.14s}
     .sv-stagger > *:nth-child(5){animation-delay:.18s}.sv-stagger > *:nth-child(6){animation-delay:.22s}
@@ -25,14 +25,10 @@ export const GlobalStyle = () => (
     .sv-scale { animation: svScale .2s cubic-bezier(.2,.9,.3,1.15) both; }
     .sv-ambient { position:fixed; inset:0; pointer-events:none; z-index:0; overflow:hidden; }
     .sv-blob { position:absolute; border-radius:50%; filter:blur(74px); opacity:.5; animation:svDrift 22s ease-in-out infinite; }
-    .sv-glass {
-      backdrop-filter: blur(18px) saturate(150%); -webkit-backdrop-filter: blur(18px) saturate(150%);
-      position:relative; transition: transform .26s cubic-bezier(.2,.8,.2,1), box-shadow .26s ease, border-color .26s ease;
-    }
-    .sv-glass::before { content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
-      background:linear-gradient(150deg, rgba(255,255,255,.62) 0%, rgba(255,255,255,.16) 34%, rgba(255,255,255,0) 62%); }
-    .sv-glass::after { content:''; position:absolute; left:12%; right:12%; top:0; height:1px; pointer-events:none;
-      background:linear-gradient(90deg, transparent, rgba(255,255,255,.95), transparent); }
+    /* Solid surfaces. Only the Career Hub (below) adds a sheen. */
+    .sv-glass { position:relative; transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
+    .sv-glass::before { content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none; }
+    .sv-glass::after { content:''; position:absolute; left:12%; right:12%; top:0; height:1px; pointer-events:none; }
     .sv-glass > * { position:relative; z-index:1; }
     /* Career Hub (black and gold): a faint gold sheen instead of the white glass highlight. */
     [data-career] .sv-glass::before { background:linear-gradient(150deg, rgba(232,199,102,.075) 0%, rgba(232,199,102,0) 42%); }
@@ -40,7 +36,7 @@ export const GlobalStyle = () => (
     [data-career] .sv-skel { background:linear-gradient(90deg, rgba(212,175,55,.05) 0, rgba(212,175,55,.12) 44px, rgba(212,175,55,.05) 88px);
       background-size:840px 100%; }
     [data-career] ::selection { background: rgba(212,175,55,.35); color: #fff; }
-    .sv-lift:hover { transform: translateY(-4px); }
+    .sv-lift:hover { transform: translateY(-2px); }
     .sv-btn { transition: transform .12s ease, opacity .12s, background-color .16s, border-color .16s; }
     .sv-btn:active { transform: scale(.96); }
     .sv-btn:disabled { opacity:.5; cursor:not-allowed !important; }
@@ -105,7 +101,7 @@ export function CollegeMark({ size = 34, showText = true, compact = false, inver
       {showText && (
         <div style={{ minWidth: 0 }}>
           <div style={{
-            fontFamily: FONT_D, fontWeight: 700, color: textColor,
+            fontFamily: FONT_SERIF, fontWeight: 700, color: textColor,
             fontSize: compact ? 14 : 15.5, lineHeight: 1.15, letterSpacing: "-0.01em",
             whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
           }}>{compact ? "Easwari Engineering" : COLLEGE.name}</div>
@@ -156,11 +152,12 @@ export function Card({ children, style = {}, className = "", onClick, lift = tru
   const [hover, setHover] = useState(false);
   return (
     <div onClick={onClick} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      className={`sv-glass ${lift ? "sv-lift" : ""} ${className}`}
+      className={`sv-glass ${lift && onClick ? "sv-lift" : ""} ${className}`}
       style={{
-        background: t.card, border: `1px solid ${hover ? t.glassBorder : t.border}`,
-        borderRadius: 16, cursor: onClick ? "pointer" : "default",
-        boxShadow: hover && lift ? t.shadowLg : t.shadowMd, overflow: "hidden", ...style,
+        // Only clickable cards react to the pointer; static panels stay still.
+        background: t.card, border: `1px solid ${hover && onClick ? t.glassBorder : t.border}`,
+        borderRadius: 12, cursor: onClick ? "pointer" : "default",
+        boxShadow: hover && lift && onClick ? t.shadowLg : t.shadowMd, overflow: "hidden", ...style,
       }}>{children}</div>
   );
 }
@@ -202,15 +199,16 @@ export function SectionHead({ title, sub, icon: Icon, right }) {
   return (
     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 11, minWidth: 0 }}>
-        {Icon && (
+        {/* The icon badge belongs to the Career Hub look; elsewhere headings are plain text. */}
+        {Icon && t.dark && (
           <div style={{
             width: 32, height: 32, borderRadius: 8, background: t.goldSoft, border: `1px solid ${t.borderGold}`,
             display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1,
           }}><Icon size={15} color={t.gold} /></div>
         )}
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontFamily: FONT_D, fontSize: 17, fontWeight: 700, color: t.text }}>{title}</div>
-          {sub && <div style={{ fontSize: 11.5, color: t.textDim, marginTop: 3, lineHeight: 1.45 }}>{sub}</div>}
+          <div style={{ fontFamily: t.dark ? FONT_SERIF : FONT_D, fontSize: t.dark ? 17 : 15, fontWeight: t.dark ? 700 : 600, color: t.text }}>{title}</div>
+          {sub && <div style={{ fontSize: 12.5, color: t.textDim, marginTop: 3, lineHeight: 1.45 }}>{sub}</div>}
         </div>
       </div>
       {right}

@@ -75,7 +75,7 @@ function Overview({ setActive }) {
     ? Math.round(list.reduce((a, c) => a + c.averageAttendance, 0) / list.length) : 0;
   const atRisk = list.reduce((a, c) => a + c.studentsAtRisk, 0);
   const classHealth = list.map((c) => ({
-    name: c.subjectCode,
+    name: c.sectionName,          // one bar per class; the subject code alone repeats across sections
     attendance: c.averageAttendance,
     risk: c.studentsAtRisk,
   }));
@@ -180,7 +180,7 @@ function RiskRow({ s }) {
       borderRadius: 10, background: t.bgSoft, border: `1px solid ${t.border}`, flexWrap: "wrap" }}>
       <div style={{ display: "flex", gap: 12, minWidth: 0 }}>
         <div style={{ width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
-          background: `linear-gradient(140deg, ${t.danger}, ${t.gold})`, display: "flex",
+          background: t.primary, display: "flex",
           alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 11, fontWeight: 700 }}>
           {s.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
         </div>

@@ -108,185 +108,160 @@ export default function StudentPortal({ session, onSignOut }) {
 
 /* ─────────────── Overview ─────────────── */
 
+const inr = (n) => "₹" + Number(n).toLocaleString("en-IN");
+const shortDate = (d) => new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+
 function Overview({ push, setActive }) {
   const profile = useAsync(() => api.studentProfile(), []);
   const attendance = useAsync(() => api.studentAttendance("all"), []);
   const risk = useAsync(() => api.studentRisk(), []);
+  const marks = useAsync(() => api.studentMarks(), []);
+  const fees = useAsync(() => api.studentFees(), []);
+  const leave = useAsync(() => api.studentLeaveApplications(), []);
+  const services = useAsync(() => api.studentCmsRequests(), []);
+  const openings = useAsync(() => api.studentInternships(), []);
 
   if (profile.loading || attendance.loading) return <Skeleton />;
   if (profile.error) return <ErrorNote message={profile.error} onRetry={profile.reload} />;
 
   const p = profile.data, a = attendance.data;
-  const blocked = (a?.subjects || []).filter((s) => !s.eligible);
-  // Before any period is marked there is no percentage yet — don't show it as 0% and failing.
+  const subjects = a?.subjects || [];
+  const short = subjects.filter((s) => s.conducted > 0 && !s.eligible);
+  // Before any period is marked there is no percentage yet; don't show it as 0% and failing.
   const hasAtt = (a?.conducted || 0) > 0;
-  const attOk = hasAtt && a.overallPercentage >= 75;
-  const attValue = hasAtt ? `${a.overallPercentage}%` : "—";
-  const scoreTrend = (a?.subjects || []).slice(0, 6).map((s) => ({
-    subject: s.subjectCode,
-    attendance: s.percentage,
-    target: 75,
-  }));
+  const unpaid = (fees.data?.items || []).filter((i) => !i.paid);
+  const overdue = unpaid.filter((i) => i.overdue);
+  const pendingLeave = (leave.data || []).filter((l) => l.status === "PENDING");
+  const openServices = (services.data || []).filter((r) => r.status === "OPEN" || r.status === "IN_PROGRESS");
+  const closing = (openings.data || []).filter((o) => o.daysLeft >= 0 && o.daysLeft <= 30);
+
+  // One list of things the student should act on, most urgent first.
+  const attention = [
+    ...overdue.map((i) => ({ tone: "danger", title: `${i.description}`, detail: `${inr(i.amount)} overdue since ${shortDate(i.dueDate)}`, go: "fees", action: "Pay now" })),
+    ...short.map((s) => ({ tone: "danger", title: `${s.subjectName} attendance is ${s.percentage}%`, detail: "Below the 75% needed to sit the examination", go: "attendance", action: "View register" })),
+    ...(risk.data && !risk.data.degraded && risk.data.band !== "LOW"
+      ? [{ tone: risk.data.band === "HIGH" ? "danger" : "warning", title: `Academic risk: ${risk.data.band.toLowerCase()}`, detail: risk.data.headline, go: "learning", action: "See plan" }] : []),
+    ...unpaid.filter((i) => !i.overdue).slice(0, 3).map((i) => ({ tone: "warning", title: i.description, detail: `${inr(i.amount)} due ${shortDate(i.dueDate)}`, go: "fees", action: "Pay" })),
+    ...pendingLeave.map((l) => ({ tone: "neutral", title: `${l.type === "OD" ? "On-duty" : "Leave"} request awaiting approval`, detail: `${shortDate(l.fromDate)}${l.toDate !== l.fromDate ? ` – ${shortDate(l.toDate)}` : ""}`, go: "leave", action: "Open" })),
+    ...openServices.map((r) => ({ tone: "neutral", title: `${r.serviceType.replace("_", " ").toLowerCase().replace(/^\w/, (c) => c.toUpperCase())} request ${r.ticketNo}`, detail: r.status === "OPEN" ? "Submitted, not yet picked up" : "Being processed", go: "cms", action: "Open" })),
+    ...closing.slice(0, 2).map((o) => ({ tone: "neutral", title: `${o.title}, ${o.organisation}`, detail: `Applications close in ${o.daysLeft} day${o.daysLeft === 1 ? "" : "s"}`, go: "internships", action: "View" })),
+  ];
+  const dot = { danger: t.danger, warning: t.warning, neutral: t.textFaint };
+
+  const th = { textAlign: "left", fontSize: 12, fontWeight: 600, color: t.textDim, padding: "9px 12px", borderBottom: `1px solid ${t.border}` };
+  const td = { padding: "10px 12px", fontSize: 13, borderBottom: `1px solid ${t.border}`, verticalAlign: "middle" };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <Card lift={false} style={{ padding: 0, borderColor: t.borderGold }}>
-        <SealWatermark size={230} style={{ top: -55, right: -35 }} />
-        <div style={{ height: 3, background: `linear-gradient(90deg, ${t.gold}, ${t.primary})` }} />
-        <div style={{ display: "flex", alignItems: "center", gap: 20, padding: "18px 20px", flexWrap: "wrap" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 15, flex: 1, minWidth: 240 }}>
-            <div style={{ width: 62, height: 62, borderRadius: 13, flexShrink: 0,
-              background: `linear-gradient(140deg, ${t.primary}, ${t.gold})`, display: "flex",
-              alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 21, fontWeight: 800 }}>
-              {p.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
-            </div>
-            <div>
-              <div style={{ fontFamily: FONT_M, fontSize: 9.5, letterSpacing: "0.16em",
-                textTransform: "uppercase", color: t.gold, marginBottom: 6 }}>
-                {p.programCode} · Section {p.section}
-              </div>
-              <div style={{ fontFamily: FONT_D, fontSize: 24, fontWeight: 700, color: t.text, lineHeight: 1.1 }}>
-                {p.name}
-              </div>
-              <div style={{ display: "flex", gap: 9, marginTop: 7, flexWrap: "wrap", alignItems: "center" }}>
-                <span style={{ fontFamily: FONT_M, fontSize: 11.5, color: t.gold, fontWeight: 700 }}>{p.rollNo}</span>
-                <span style={{ fontSize: 11.5, color: t.textDim }}>Year {p.year} · Semester {p.semester}</span>
-                <span style={{ fontSize: 11.5, color: t.textDim }}>Batch {p.batch}</span>
-              </div>
-              {p.classCoordinator && (
-                <div style={{ marginTop: 8, fontSize: 11.5, color: t.textDim }}>
-                  Class coordinator: <span style={{ color: t.text, fontWeight: 600 }}>{p.classCoordinator}</span>
-                </div>
-              )}
-            </div>
+      {/* Who: the essentials of the student record, nothing repeated */}
+      <Card lift={false} style={{ padding: "18px 20px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+          <div style={{ width: 52, height: 52, borderRadius: "50%", background: t.primary, color: "#fff", flexShrink: 0,
+            display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 600 }}>
+            {p.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
           </div>
-          <div style={{ display: "flex", gap: 26, flexWrap: "wrap" }}>
-            {[["CGPA", p.cgpa.toFixed(2), "of 10.00", t.gold],
-              ["Attendance", attValue, "min 75%", !hasAtt ? t.textDim : attOk ? t.success : t.danger],
-              ["Credits", p.creditsEarned, `of ${p.creditsRequired}`, t.primary]].map(([l, v, s, c]) => (
-              <div key={l}>
-                <div style={{ fontFamily: FONT_M, fontSize: 9, letterSpacing: "0.14em",
-                  textTransform: "uppercase", color: t.textFaint, marginBottom: 5 }}>{l}</div>
-                <div style={{ fontFamily: FONT_M, fontSize: 22, fontWeight: 700, color: c, lineHeight: 1 }}>{v}</div>
-                <div style={{ fontSize: 10, color: t.textFaint, marginTop: 3 }}>{s}</div>
-              </div>
+          <div style={{ flex: 1, minWidth: 220 }}>
+            <div style={{ fontSize: 19, fontWeight: 650, color: t.text }}>{p.name}</div>
+            <div style={{ fontSize: 13, color: t.textDim, marginTop: 2 }}>{p.rollNo} · {p.programName}</div>
+            <div style={{ fontSize: 13, color: t.textDim }}>Year {p.year}, Semester {p.semester} · Section {p.section} · Batch {p.batch}</div>
+          </div>
+          <dl style={{ display: "grid", gridTemplateColumns: "auto auto", columnGap: 16, rowGap: 4, margin: 0, fontSize: 13 }}>
+            {[["Register no.", p.regNo], ["Class coordinator", p.classCoordinator], ["Mentor", p.mentor]].filter(([, v]) => v).map(([k, v]) => (
+              <React.Fragment key={k}><dt style={{ color: t.textFaint }}>{k}</dt><dd style={{ margin: 0, color: t.text, fontWeight: 500 }}>{v}</dd></React.Fragment>
             ))}
-          </div>
+          </dl>
         </div>
       </Card>
 
       <KpiTiles tiles={[
-        { label: "CGPA", value: p.cgpa.toFixed(2), sub: "out of 10.00", icon: Award, from: "#7A630D", to: "#d9a81f" },
-        { label: "Attendance", value: attValue,
-          sub: !hasAtt ? (attendance.error ? "Couldn't load attendance" : "No classes marked yet") : attOk ? "Above the 75% line" : "Below the 75% line",
-          icon: Calendar, from: !hasAtt ? "#3d5a4c" : attOk ? "#1B5E3A" : "#a30f26", to: !hasAtt ? "#6f8f7f" : attOk ? "#35a86a" : "#e04a62" },
-        { label: "Credits earned", value: p.creditsEarned, sub: `of ${p.creditsRequired} required`, icon: BookOpen, from: "#2b5fa8", to: "#4f93e0" },
-        { label: "Subjects at risk", value: blocked.length, sub: blocked.length ? "Below 75% attendance" : "All subjects eligible",
-          icon: AlertTriangle, from: blocked.length ? "#b4540a" : "#5b3fa8", to: blocked.length ? "#f08a2c" : "#8d6be0" },
+        { label: "CGPA", value: p.cgpa.toFixed(2), sub: `${p.creditsEarned} of ${p.creditsRequired} credits earned`, icon: Award, onClick: () => setActive("university") },
+        { label: "Attendance", value: hasAtt ? `${a.overallPercentage}%` : "—", icon: Calendar, onClick: () => setActive("attendance"),
+          tone: hasAtt && a.overallPercentage < 75 ? "danger" : undefined,
+          sub: !hasAtt ? "No classes marked yet" : `${a.attended} of ${a.conducted} periods${short.length ? ` · ${short.length} subject${short.length > 1 ? "s" : ""} below 75%` : ""}` },
+        { label: "Fees due", value: fees.data ? inr(fees.data.due) : "—", icon: Wallet, onClick: () => setActive("fees"),
+          tone: overdue.length ? "danger" : undefined,
+          sub: !fees.data ? "" : overdue.length ? `${inr(fees.data.overdue)} overdue` : unpaid.length ? `${unpaid.length} item${unpaid.length > 1 ? "s" : ""} open` : "All paid" },
+        { label: "Open requests", value: pendingLeave.length + openServices.length, icon: Send, onClick: () => setActive("leave"),
+          sub: `${pendingLeave.length} leave / OD · ${openServices.length} campus service` },
       ]} />
 
-      <div className="sv-grid-2" style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: 16 }}>
-        <Card lift={false} style={{ padding: 18 }}>
-          <SectionHead icon={BarChart3} title="Performance pulse" sub="Attendance against the 75% eligibility benchmark" />
-          <div style={{ height: 210 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={scoreTrend}>
-                <defs>
-                  <linearGradient id="studentTrendFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={t.primary} stopOpacity={0.38} />
-                    <stop offset="100%" stopColor={t.primary} stopOpacity={0.04} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke={t.border} vertical={false} />
-                <XAxis dataKey="subject" tick={{ fill: t.textDim, fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis domain={[0, 100]} tick={{ fill: t.textDim, fontSize: 11 }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ background: "#fff", border: `1px solid ${t.border}`, borderRadius: 9, fontSize: 12 }} />
-                <Area type="monotone" dataKey="attendance" stroke={t.primary} fill="url(#studentTrendFill)" strokeWidth={2.4} />
-                <Area type="monotone" dataKey="target" stroke={t.gold} fill="transparent" strokeDasharray="5 5" strokeWidth={1.5} />
-              </AreaChart>
-            </ResponsiveContainer>
+      <div className="sv-grid-2" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.45fr) minmax(0, 1fr)", gap: 16, alignItems: "start" }}>
+        <Card lift={false} style={{ padding: 0 }}>
+          <div style={{ padding: "16px 18px 6px", display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
+            <SectionHead title="Attendance by subject" sub="75% in every subject is required to sit the semester examination." />
+            <button onClick={() => setActive("attendance")} className="sv-btn" style={{ background: "none", border: "none", color: t.primary,
+              fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>Full register</button>
           </div>
-        </Card>
-
-        <Card lift={false} style={{ padding: 18 }}>
-          <SectionHead icon={Target} title="Readiness snapshot" sub="Current risk and academic momentum" />
-          <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 6 }}>
-            {!risk.loading && risk.data && !risk.data.degraded ? (
-              <>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: 12, color: t.textDim }}>Risk score</span>
-                  <Badge tone={risk.data.band === "HIGH" ? "danger" : risk.data.band === "MEDIUM" ? "warning" : "success"}>{risk.data.band} · {risk.data.risk_score}</Badge>
-                </div>
-                <Progress pct={Math.min(100, risk.data.risk_score)} color={risk.data.band === "HIGH" ? t.danger : risk.data.band === "MEDIUM" ? t.warning : t.success} height={8} />
-                <div style={{ fontSize: 11.5, color: t.textDim, lineHeight: 1.5 }}>{risk.data.headline}</div>
-              </>
-            ) : (
-              <div style={{ fontSize: 12, color: t.textDim }}>No active risk alarm. Your trajectory looks stable.</div>
-            )}
-          </div>
-        </Card>
-      </div>
-
-      {blocked.length > 0 && (
-        <Card lift={false} style={{ padding: 18, borderColor: `${t.danger}44` }}>
-          <div style={{ display: "flex", gap: 11 }}>
-            <AlertTriangle size={17} color={t.danger} style={{ flexShrink: 0, marginTop: 1 }} />
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: t.text }}>
-                {blocked.length} subject{blocked.length > 1 ? "s need" : " needs"} attention
-              </div>
-              <div style={{ fontSize: 11.5, color: t.textDim, marginTop: 4, lineHeight: 1.5 }}>
-                {blocked.map((s) => `${s.subjectCode} at ${s.percentage}%`).join(", ")} — below the 75% needed
-                to sit the semester examination.
-              </div>
-              <div style={{ marginTop: 11 }}>
-                <Button size="sm" variant="soft" onClick={() => setActive("attendance")}>View register</Button>
-              </div>
+          {!subjects.length ? <EmptyState icon={Calendar} title="No attendance recorded yet" /> : (
+            <div className="sv-scroll" style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 480 }}>
+                <thead><tr><th style={th}>Subject</th><th style={{ ...th, textAlign: "right" }}>Periods</th><th style={{ ...th, width: 170 }}>Attendance</th></tr></thead>
+                <tbody>
+                  {subjects.map((s) => (
+                    <tr key={s.subjectCode}>
+                      <td style={td}><div style={{ fontWeight: 500 }}>{s.subjectName}</div><div style={{ fontSize: 12, color: t.textFaint }}>{s.subjectCode}</div></td>
+                      <td style={{ ...td, textAlign: "right", color: t.textDim, fontVariantNumeric: "tabular-nums" }}>{s.attended}/{s.conducted}</td>
+                      <td style={td}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <div style={{ position: "relative", flex: 1, height: 6, borderRadius: 3, background: t.bgSoft, border: `1px solid ${t.border}` }}>
+                            <div style={{ width: `${s.percentage}%`, height: "100%", borderRadius: 3, background: s.eligible ? t.primary : t.danger }} />
+                            <div title="75% minimum" style={{ position: "absolute", left: "75%", top: -3, bottom: -3, width: 1.5, background: t.textFaint }} />
+                          </div>
+                          <span style={{ width: 40, textAlign: "right", fontWeight: 600, fontVariantNumeric: "tabular-nums",
+                            color: s.eligible ? t.text : t.danger }}>{s.percentage}%</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          </div>
+          )}
         </Card>
-      )}
 
-      {!risk.loading && risk.data && !risk.data.degraded && (
-        <Card lift={false} style={{ padding: 18 }}>
-          <SectionHead icon={Target} title="How you're tracking"
-            sub={risk.data.headline}
-            right={<Badge tone={risk.data.band === "HIGH" ? "danger" : risk.data.band === "MEDIUM" ? "warning" : "success"}>
-              {risk.data.band} risk · {risk.data.risk_score}/100</Badge>} />
-          <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-            {(risk.data.factors || []).map((f) => (
-              <div key={f.label} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <span style={{ fontSize: 11.5, color: t.textDim, width: 92, flexShrink: 0 }}>{f.label}</span>
-                <div style={{ flex: 1 }}><Progress pct={f.contribution * 2.5} color={t.warning} height={5} /></div>
-                <span style={{ fontSize: 11, color: t.textFaint, flex: 1.6, minWidth: 0 }}>{f.detail}</span>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <Card lift={false} style={{ padding: "16px 18px" }}>
+            <SectionHead title="Needs your attention" />
+            {!attention.length ? (
+              <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, color: t.textDim }}>
+                <CheckCircle2 size={16} color={t.success} /> You're all caught up.</div>
+            ) : attention.slice(0, 7).map((x, i) => (
+              <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "10px 0",
+                borderTop: i ? `1px solid ${t.border}` : "none" }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: dot[x.tone], marginTop: 6, flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: t.text }}>{x.title}</div>
+                  <div style={{ fontSize: 12, color: x.tone === "danger" ? t.danger : t.textDim, marginTop: 1 }}>{x.detail}</div>
+                </div>
+                <button onClick={() => setActive(x.go)} className="sv-btn" style={{ background: "none", border: `1px solid ${t.border}`,
+                  borderRadius: 6, padding: "4px 9px", fontSize: 12, fontWeight: 600, color: t.primary, cursor: "pointer", whiteSpace: "nowrap" }}>{x.action}</button>
               </div>
             ))}
-          </div>
-        </Card>
-      )}
+          </Card>
 
-      <Card lift={false} style={{ padding: 18 }}>
-        <SectionHead icon={BookOpen} title="Subject-wise standing" />
-        <div className="sv-stagger" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {(a?.subjects || []).map((s) => (
-            <div key={s.subjectCode} style={{ padding: "13px 15px", borderRadius: 11, background: t.bgSoft,
-              border: `1px solid ${s.eligible ? t.border : `${t.danger}44`}` }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 9, flexWrap: "wrap" }}>
-                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                  <span style={{ fontFamily: FONT_M, fontSize: 10.5, color: t.gold, fontWeight: 700 }}>{s.subjectCode}</span>
-                  <span style={{ fontSize: 12.5, fontWeight: 600 }}>{s.subjectName}</span>
-                </div>
-                <div style={{ display: "flex", gap: 9, alignItems: "center" }}>
-                  <span style={{ fontFamily: FONT_M, fontSize: 11, color: t.textFaint }}>{s.attended}/{s.conducted}</span>
-                  <span style={{ fontFamily: FONT_M, fontSize: 13, fontWeight: 700,
-                    color: s.eligible ? t.success : t.danger }}>{s.percentage}%</span>
-                </div>
-              </div>
-              <Progress pct={s.percentage} color={s.eligible ? t.success : t.danger} />
-            </div>
-          ))}
+          <Card lift={false} style={{ padding: "16px 18px" }}>
+            <SectionHead title="Internal marks" sub="Published internal assessments this semester." />
+            {!marks.data?.subjects?.length ? <div style={{ fontSize: 13, color: t.textDim }}>No marks published yet.</div> : (
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead><tr><th style={{ ...th, padding: "6px 0" }}>Subject</th><th style={{ ...th, padding: "6px 0", textAlign: "right" }}>IA 1</th>
+                  <th style={{ ...th, padding: "6px 0", textAlign: "right" }}>IA 2</th><th style={{ ...th, padding: "6px 0", textAlign: "right" }}>Grade</th></tr></thead>
+                <tbody>
+                  {marks.data.subjects.map((m) => (
+                    <tr key={m.subjectCode}>
+                      <td style={{ ...td, padding: "8px 0" }}>{m.subjectCode}</td>
+                      <td style={{ ...td, padding: "8px 0", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{m.ia1 ?? "—"}</td>
+                      <td style={{ ...td, padding: "8px 0", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{m.ia2 ?? "—"}</td>
+                      <td style={{ ...td, padding: "8px 0", textAlign: "right", fontWeight: 600, color: m.grade === "RA" ? t.danger : t.text }}>{m.grade}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            <button onClick={() => setActive("assessments")} className="sv-btn" style={{ background: "none", border: "none", color: t.primary,
+              fontSize: 13, fontWeight: 600, cursor: "pointer", padding: "10px 0 0" }}>All assessments</button>
+          </Card>
         </div>
-      </Card>
+      </div>
     </div>
   );
 }
