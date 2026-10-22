@@ -37,6 +37,9 @@ public class FacultyService {
     public List<FacultyClass> classesFor(User user) {
         Faculty faculty = profileOf(user);
         Map<Long, FacultyClass> resultBySection = new LinkedHashMap<>();
+        List<ClassSection> coordinated = classSectionRepo.findByCoordinatorId(faculty.getId());
+        Set<Long> coordinatedIds = new HashSet<>();
+        coordinated.forEach(cs -> coordinatedIds.add(cs.getId()));
 
         for (SubjectOffering off : offeringRepo.findByFacultyId(faculty.getId())) {
             List<Student> students = studentRepo.findByClassSectionId(off.getClassSection().getId());
@@ -55,10 +58,11 @@ public class FacultyService {
                     new FacultyClass(off.getClassSection().getId(), off.getId(),
                             off.getSubject().getCode(), off.getSubject().getName(),
                             off.getClassSection().getDisplayName(), students.size(),
-                            conducted == 0 ? 0 : (int) Math.round(attended * 100.0 / conducted), atRisk));
+                            conducted == 0 ? 0 : (int) Math.round(attended * 100.0 / conducted), atRisk,
+                            coordinatedIds.contains(off.getClassSection().getId())));
         }
 
-        for (ClassSection section : classSectionRepo.findByCoordinatorId(faculty.getId())) {
+        for (ClassSection section : coordinated) {
             if (resultBySection.containsKey(section.getId())) {
                 continue;
             }
@@ -74,7 +78,7 @@ public class FacultyService {
                     (int) Math.round(attended * 100.0 / total);
             resultBySection.put(section.getId(),
                     new FacultyClass(section.getId(), null, "COORD", "Class coordinator",
-                            section.getDisplayName(), students.size(), averageAttendance, 0));
+                            section.getDisplayName(), students.size(), averageAttendance, 0, true));
         }
 
         return new ArrayList<>(resultBySection.values());
@@ -157,7 +161,7 @@ public class FacultyService {
     }
 
     @Transactional
-    public Student addStudentToSection(User actor, Long classSectionId, AddStudentToSectionRequest req) {
+    public AddedStudent addStudentToSection(User actor, Long classSectionId, AddStudentToSectionRequest req) {
         Faculty faculty = facultyRepo.findByUserId(actor.getId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "No staff profile on this account"));
 
@@ -188,9 +192,10 @@ public class FacultyService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "This class section is not linked to a programme");
         }
 
+        String temporaryPassword = TempPasswords.generate();
         User studentUser = userRepo.save(User.builder()
                 .username(rollNo)
-                .passwordHash(passwordEncoder.encode("Student@123"))
+                .passwordHash(passwordEncoder.encode(temporaryPassword))
                 .role(Role.STUDENT)
                 .active(true)
                 .mustChangePassword(true)
@@ -208,6 +213,6 @@ public class FacultyService {
                 .batchStartYear(req.batch())
                 .build());
 
-        return student;
+        return new AddedStudent(student, temporaryPassword);
     }
 }

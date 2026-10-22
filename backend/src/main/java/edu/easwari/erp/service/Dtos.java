@@ -42,7 +42,11 @@ public class Dtos {
                               String department, String createdAt, String initialPassword) {}
     public record AuditEntry(String actor, String action, String targetType, Long targetId,
                              String detail, String at) {}
-    public record ImportResult(int created, int skipped, List<String> errors) {}
+    /** credentials: each created account's one-time password, shown to the admin once. */
+    public record ImportResult(int created, int skipped, List<String> errors, List<Credential> credentials) {}
+    public record Credential(String username, String name, String temporaryPassword) {}
+    /** A student added by their class coordinator, with the one-time password to hand over. */
+    public record AddedStudent(edu.easwari.erp.domain.Student student, String temporaryPassword) {}
 
     // ── Attendance ──
     /** Single period, one class. The quick path faculty use between hours. */
@@ -102,9 +106,10 @@ public class Dtos {
                                  String department, String section, int year, int semester,
                                  String batch, String mentor, String classCoordinator, String hostel,
                                  double cgpa, int creditsEarned, int creditsRequired) {}
+    /** coordinator: the signed-in faculty member is this section's class coordinator. */
     public record FacultyClass(Long classSectionId, Long subjectOfferingId, String subjectCode,
                                String subjectName, String sectionName, int studentCount,
-                               int averageAttendance, int studentsAtRisk) {}
+                               int averageAttendance, int studentsAtRisk, boolean coordinator) {}
     public record AtRiskStudent(Long studentId, String rollNo, String name, String sectionName,
                                 int riskScore, String band, List<String> reasons) {}
     public record AdminDashboard(long students, long faculty, long departments, long openRequests,

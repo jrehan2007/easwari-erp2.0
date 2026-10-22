@@ -39,11 +39,13 @@ public class FacultyController {
     @PostMapping("/classes/{classSectionId}/students")
     public Map<String, Object> addStudent(@PathVariable Long classSectionId,
                                          @Valid @RequestBody AddStudentToSectionRequest req) {
-        var created = facultyService.addStudentToSection(currentUser.get(), classSectionId, req);
+        var added = facultyService.addStudentToSection(currentUser.get(), classSectionId, req);
+        var created = added.student();
         return Map.of(
                 "studentId", created.getId(),
                 "rollNo", created.getRollNo(),
                 "name", created.getName(),
+                "temporaryPassword", added.temporaryPassword(),
                 "message", "Student added to the section");
     }
 

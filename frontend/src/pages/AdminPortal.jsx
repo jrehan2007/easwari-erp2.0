@@ -11,7 +11,7 @@ import Shell from "./Shell";
 import { theme as t, FONT_D, FONT_M } from "../lib/theme";
 import {
   Card, Badge, Button, SectionHead, Progress, Skeleton, EmptyState, ErrorNote,
-  Modal, Field, SealWatermark, useToasts, ToastStack, Spinner,
+  Modal, Field, SealWatermark, useToasts, ToastStack, Spinner, CredentialsModal,
 } from "../components/Shared";
 import { api, download } from "../lib/api";
 
@@ -193,6 +193,7 @@ function AccessManagement({ push }) {
   const [form, setForm] = useState(BLANK);
   const [busy, setBusy] = useState(false);
   const [importResult, setImportResult] = useState(null);
+  const [issued, setIssued] = useState(null);   // { title, rows } of one-time passwords to show once
   const [confirmTarget, setConfirmTarget] = useState(null);
   const fileRef = useRef();
   const users = useAsync(() => api.adminUsers(roleFilter === "ALL" ? null : roleFilter), [roleFilter]);
@@ -222,11 +223,9 @@ function AccessManagement({ push }) {
         year: form.year === "" ? null : Number(form.year),
         semester: form.semester === "" ? null : Number(form.semester),
       });
-      push({
-        title: `${res.username} created`,
-        body: `Temporary password: ${res.initialPassword}. Share it once — they must set their own on first sign-in.`,
-        tone: "success",
-      });
+      push({ title: `${res.username} created`, body: "Copy the temporary password before closing.", tone: "success" });
+      setIssued({ title: `${res.name} can now sign in`,
+        rows: [{ username: res.username, name: res.name, temporaryPassword: res.initialPassword }] });
       setCreateOpen(false); setForm(BLANK); users.reload();
     } catch (e) {
       push({ title: "Not created", body: e.message, tone: "danger" });
@@ -262,8 +261,8 @@ function AccessManagement({ push }) {
   async function resetPassword(u) {
     try {
       const res = await api.resetUserPassword(u.id);
-      push({ title: `Temporary password: ${res.temporaryPassword}`,
-        body: "Share once. They must change it at next sign-in.", tone: "primary" });
+      setIssued({ title: `Password reset for ${u.name}`,
+        rows: [{ username: u.username, name: u.name, temporaryPassword: res.temporaryPassword }] });
     } catch (e) { push({ title: "Reset failed", body: e.message, tone: "danger" }); }
   }
 
@@ -274,6 +273,7 @@ function AccessManagement({ push }) {
     try {
       const res = await api.bulkImport(file);
       setImportResult(res);
+      if (res.credentials?.length) setIssued({ title: `${res.credentials.length} accounts created`, rows: res.credentials });
       push({ title: `${res.created} accounts created`,
         body: res.skipped ? `${res.skipped} rows skipped.` : "Every row imported cleanly.",
         tone: res.skipped ? "warning" : "success" });
@@ -304,6 +304,8 @@ function AccessManagement({ push }) {
               <Button size="sm" icon={UserPlus} onClick={() => setCreateOpen(true)}>New account</Button>
             </div>} />
           <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleImport} style={{ display: "none" }} />
+
+          <CredentialsModal open={!!issued} onClose={() => setIssued(null)} title={issued?.title} rows={issued?.rows || []} />
 
           {importResult && (
             <div style={{ padding: "12px 14px", borderRadius: 10, marginBottom: 14,

@@ -49,6 +49,7 @@ class FacultyServiceTest {
         assertThat(classes).hasSize(1);
         assertThat(classes.get(0).classSectionId()).isEqualTo(42L);
         assertThat(classes.get(0).sectionName()).isEqualTo("? Y3-A");
+        assertThat(classes.get(0).coordinator()).isTrue();
     }
 
     @Test
@@ -83,9 +84,12 @@ class FacultyServiceTest {
         when(facultyRepo.findByUserId(99L)).thenReturn(java.util.Optional.of(faculty));
         when(classSectionRepo.findById(42L)).thenReturn(java.util.Optional.of(section));
         when(studentRepo.findByRollNoIgnoreCase("CSE23001")).thenReturn(java.util.Optional.empty());
-        when(passwordEncoder.encode("Student@123")).thenReturn("hashed-password");
+        when(passwordEncoder.encode(org.mockito.ArgumentMatchers.anyString()))
+                .thenAnswer(inv -> "hashed:" + inv.getArgument(0));
+        java.util.concurrent.atomic.AtomicReference<User> savedUser = new java.util.concurrent.atomic.AtomicReference<>();
         when(userRepo.save(org.mockito.ArgumentMatchers.any(User.class))).thenAnswer(inv -> {
             User u = inv.getArgument(0);
+            savedUser.set(u);
             u.setId(1001L);
             return u;
         });
@@ -95,8 +99,14 @@ class FacultyServiceTest {
             return s;
         });
 
-        Student created = facultyService.addStudentToSection(user, 42L,
+        var added = facultyService.addStudentToSection(user, 42L,
                 new edu.easwari.erp.service.Dtos.AddStudentToSectionRequest("Asha", "CSE23001", 3, 2023));
+        Student created = added.student();
+
+        // A fresh random one-time password, and that exact password is what got hashed.
+        assertThat(added.temporaryPassword()).matches("[A-HJ-NP-Za-km-z2-9]{10}");
+        assertThat(savedUser.get().getPasswordHash()).isEqualTo("hashed:" + added.temporaryPassword());
+        assertThat(savedUser.get().isMustChangePassword()).isTrue();
 
         assertThat(created.getName()).isEqualTo("Asha");
         assertThat(created.getClassSection()).isSameAs(section);

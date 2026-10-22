@@ -42,6 +42,7 @@ public class ExcelService {
     public ImportResult importUsers(User actor, MultipartFile file) {
         int created = 0, skipped = 0;
         List<String> errors = new ArrayList<>();
+        List<Credential> credentials = new ArrayList<>();
 
         try (InputStream in = file.getInputStream(); Workbook wb = WorkbookFactory.create(in)) {
             Sheet sheet = wb.getSheetAt(0);
@@ -54,7 +55,7 @@ public class ExcelService {
                 if (username.isBlank()) continue;
 
                 try {
-                    adminService.createUser(actor, new CreateUserRequest(
+                    UserSummary made = adminService.createUser(actor, new CreateUserRequest(
                             username,
                             orDefault(str(row, cols.get("role")), "STUDENT"),
                             str(row, cols.get("name")),
@@ -68,6 +69,7 @@ public class ExcelService {
                             str(row, cols.get("staffcode")),
                             str(row, cols.get("designation")),
                             null));
+                    credentials.add(new Credential(made.username(), made.name(), made.initialPassword()));
                     created++;
                 } catch (Exception ex) {
                     skipped++;
@@ -75,7 +77,7 @@ public class ExcelService {
                 }
             }
         }
-        return new ImportResult(created, skipped, errors);
+        return new ImportResult(created, skipped, errors, credentials);
     }
 
     /* ─────────────── Export ─────────────── */

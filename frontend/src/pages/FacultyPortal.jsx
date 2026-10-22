@@ -10,7 +10,7 @@ import Shell from "./Shell";
 import { theme as t, FONT_D, FONT_M } from "../lib/theme";
 import {
   Card, Badge, Button, SectionHead, Progress, Skeleton, EmptyState,
-  ErrorNote, useToasts, ToastStack, Spinner,
+  ErrorNote, useToasts, ToastStack, Spinner, CredentialsModal,
 } from "../components/Shared";
 import { api } from "../lib/api";
 
@@ -210,7 +210,6 @@ function AttendanceEntry({ push }) {
   const [mode, setMode] = useState("period");   // period | day
   const [activePeriod, setActivePeriod] = useState(0);
   const [editable, setEditable] = useState({});     // offeringId -> may this user mark it?
-  const [isCoordinator, setIsCoordinator] = useState(false);
 
   useEffect(() => {
     if (!sectionId && classes.data?.length) setSectionId(classes.data[0].classSectionId);
@@ -221,11 +220,12 @@ function AttendanceEntry({ push }) {
     api.facultyOfferings(sectionId)
       .then((list) => {
         setEditable(Object.fromEntries(list.map((o) => [o.id, o.editable])));
-        setIsCoordinator(list.length > 0 && list.every((o) => o.editable));
       })
-      .catch(() => { setEditable({}); setIsCoordinator(false); });
+      .catch(() => setEditable({}));
   }, [sectionId]);
   const canEdit = (p) => editable[p.subjectOfferingId] === true;
+  // Stated by the server for this signed-in faculty member, not guessed from edit rights.
+  const isCoordinator = !!(classes.data || []).find((c) => c.classSectionId === sectionId)?.coordinator;
 
   useEffect(() => {
     if (!sectionId || !date) return;
@@ -685,6 +685,7 @@ function StudentsList() {
   const [students, setStudents] = useState([]);
   const [query, setQuery] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
+  const [issued, setIssued] = useState(null);   // one-time password of the student just added
   const [form, setForm] = useState({ name: "", rollNumber: "", year: "", batch: "" });
   const [submitting, setSubmitting] = useState(false);
 
@@ -713,7 +714,7 @@ function StudentsList() {
     if (!sectionId) return;
     setSubmitting(true);
     try {
-      await api.facultyAddStudent(sectionId, {
+      const res = await api.facultyAddStudent(sectionId, {
         name: form.name.trim(),
         rollNumber: form.rollNumber.trim(),
         year: Number(form.year),
@@ -721,6 +722,8 @@ function StudentsList() {
       });
       setForm({ name: "", rollNumber: "", year: "", batch: "" });
       setShowAddForm(false);
+      setIssued({ title: `${res.name} added to the class`,
+        rows: [{ username: res.rollNo, name: res.name, temporaryPassword: res.temporaryPassword }] });
       refreshRoster();
     } catch (err) {
       window.alert(err.message || "Unable to add student");
@@ -734,6 +737,7 @@ function StudentsList() {
   return (
     <Card lift={false} style={{ padding: 18 }}>
       <SectionHead icon={Users} title="Students" sub="Search by name or roll number." />
+      <CredentialsModal open={!!issued} onClose={() => setIssued(null)} title={issued?.title} rows={issued?.rows || []} />
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
         <div style={{ flex: 1, minWidth: 170 }}>
           <label htmlFor="faculty-section-select" style={{ display: "block", fontSize: 11.5, fontWeight: 600, color: t.textDim, marginBottom: 6 }}>Class</label>

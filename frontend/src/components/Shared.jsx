@@ -285,6 +285,66 @@ export function Modal({ open, onClose, title, eyebrow, children, footer, width =
   );
 }
 
+/** Copies text; falls back to a hidden textarea where the Clipboard API is unavailable (plain-http LAN). */
+export async function copyText(text) {
+  try { if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); return true; } } catch { /* fall back */ }
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    return ok;
+  } catch { return false; }
+}
+
+export function CopyButton({ text, label = "Copy" }) {
+  const [state, setState] = useState("idle");   // idle | done | failed
+  return (
+    <button type="button" className="sv-btn" aria-label={`${label}: ${text}`}
+      onClick={async () => { setState((await copyText(text)) ? "done" : "failed"); setTimeout(() => setState("idle"), 1800); }}
+      style={{ padding: "6px 11px", borderRadius: 7, fontSize: 11.5, fontWeight: 700, cursor: "pointer", minHeight: 34,
+        background: state === "done" ? t.successSoft : "#fff", color: state === "failed" ? t.danger : t.primary,
+        border: `1px solid ${state === "done" ? t.success : t.border}` }}>
+      {state === "done" ? "Copied" : state === "failed" ? "Select and copy" : label}
+    </button>
+  );
+}
+
+/**
+ * One-time passwords for newly created accounts. Shown once: the server never
+ * stores them in plain text, so closing this is the last chance to copy them.
+ */
+export function CredentialsModal({ open, onClose, title = "Account created", rows = [] }) {
+  const all = rows.map((r) => `${r.username}\t${r.temporaryPassword}`).join("\n");
+  return (
+    <Modal open={open} onClose={onClose} eyebrow="Temporary password" title={title} width={520}
+      footer={<>
+        {rows.length > 1 && <CopyButton text={all} label="Copy all" />}
+        <Button onClick={onClose}>I've saved it</Button>
+      </>}>
+      <div style={{ fontSize: 12.5, color: t.textDim, lineHeight: 1.5, marginBottom: 14 }}>
+        Share {rows.length > 1 ? "each password" : "this password"} with the person directly. It is shown only now,
+        and they must choose their own at first sign-in.
+      </div>
+      <div className="sv-scroll" style={{ maxHeight: 340, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
+        {rows.map((r) => (
+          <div key={r.username} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px",
+            borderRadius: 10, border: `1px solid ${t.border}`, background: t.bgSoft }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 600 }}>{r.name || r.username}</div>
+              <div style={{ fontFamily: FONT_M, fontSize: 11, color: t.textDim }}>{r.username}</div>
+            </div>
+            <code data-testid="temp-password" style={{ fontFamily: FONT_M, fontSize: 15, fontWeight: 700, letterSpacing: "0.06em",
+              color: t.text, userSelect: "all" }}>{r.temporaryPassword}</code>
+            <CopyButton text={r.temporaryPassword} />
+          </div>
+        ))}
+      </div>
+    </Modal>
+  );
+}
+
 export function Field({ label, value, onChange, type = "text", placeholder, hint }) {
   return (
     <div>

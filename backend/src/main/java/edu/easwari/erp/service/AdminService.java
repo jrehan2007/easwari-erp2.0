@@ -55,7 +55,7 @@ public class AdminService {
         }
         Role role = parseRole(req.role());
         String initial = (req.initialPassword() == null || req.initialPassword().isBlank())
-                ? defaultPasswordFor(role) : req.initialPassword();
+                ? TempPasswords.generate() : req.initialPassword();
 
         // Resolve and validate every linked record before anything is written,
         // so a bad request never leaves a half-created account behind.
