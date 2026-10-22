@@ -3,17 +3,16 @@ import {
   FileText, Github, Target, GraduationCap, Award, FolderGit2, Headphones, Download, RefreshCw, Check,
   ExternalLink, Upload, Trash2, Search, Play, Square, Settings as SettingsIcon, Hash, AlertTriangle, Star,
 } from "lucide-react";
-import { theme as t, FONT_D, FONT_M } from "../lib/theme";
+// The Career Hub has its own black-and-gold palette; Shell provides the same palette to shared components.
+import { careerTheme as t, FONT_D, FONT_M } from "../lib/theme";
 import { Card, Badge, Button, SectionHead, Progress, EmptyState, Field, Spinner } from "../components/Shared";
-import CodeSlots from "../components/CodeSlots";
 import { useStore } from "../lib/store";
 import { ROLES, COURSES, COURSE_CATS, PROJECTS } from "../lib/careerData";
 import { resumeReport, recommendRoles, matchSkills, analyzeGithub, summarize, keyTerms, makeQuiz } from "../lib/analyze";
 import { readPdf } from "../lib/pdf";
 import { api } from "../lib/api";
-import { markQuickCode } from "./Welcome";
 
-const input = { width: "100%", padding: "11px 13px", borderRadius: 9, background: "#fff", border: `1px solid ${t.border}`,
+const input = { width: "100%", padding: "11px 13px", borderRadius: 9, background: t.surface, border: `1px solid ${t.border}`,
   fontSize: 13.5, minHeight: 44, color: t.text, fontFamily: "inherit" };
 const scoreColor = (n) => (n >= 75 ? t.success : n >= 50 ? t.warning : t.danger);
 
@@ -29,7 +28,7 @@ function Ring({ value, size = 96 }) {
   );
 }
 const Bar = ({ label, value }) => (
-  <div style={{ padding: "12px 14px", borderRadius: 11, background: "rgba(255,255,255,.7)", border: `1px solid ${t.border}` }}>
+  <div style={{ padding: "12px 14px", borderRadius: 11, background: t.card, border: `1px solid ${t.border}` }}>
     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, fontWeight: 600, marginBottom: 8 }}>
       <span>{label}</span><span style={{ fontFamily: FONT_M, color: scoreColor(value) }}>{value}%</span>
     </div>
@@ -37,9 +36,11 @@ const Bar = ({ label, value }) => (
   </div>
 );
 const Title = ({ children, sub }) => (
-  <div style={{ marginBottom: 14 }}>
-    <h2 style={{ fontFamily: FONT_D, fontSize: 26, margin: 0, color: t.text }}>{children}</h2>
-    {sub && <div style={{ fontSize: 12.5, color: t.textDim, marginTop: 4 }}>{sub}</div>}
+  <div style={{ marginBottom: 20 }}>
+    <div style={{ fontFamily: FONT_M, fontSize: 10, letterSpacing: "0.22em", textTransform: "uppercase", color: t.primary }}>Career Hub</div>
+    <h2 style={{ fontFamily: FONT_D, fontSize: 30, margin: "6px 0 0", color: t.text, letterSpacing: "-0.01em" }}>{children}</h2>
+    <div style={{ width: 56, height: 2, background: `linear-gradient(90deg, ${t.primary}, transparent)`, margin: "10px 0 8px" }} />
+    {sub && <div style={{ fontSize: 13, color: t.textDim, maxWidth: 720, lineHeight: 1.55 }}>{sub}</div>}
   </div>
 );
 const RoleSelect = ({ value, onChange }) => (
@@ -55,31 +56,141 @@ function saveText(name, text) {
 
 /* ───────────────────────── Career Hub home ───────────────────────── */
 const BLURBS = {
-  resume: "Upload your resume PDF. Get a score, strengths, gaps and an internship / placement verdict.",
-  github: "Score your public GitHub profile the way a recruiter reads it.",
-  skillgap: "Compare your skills with a target role and see what to learn next.",
-  courses: "Curated free courses by track.",
-  certs: "Track certifications and achievements in one place.",
-  projects: "Project blueprints that stand out on a resume.",
+  resume: "Upload your resume PDF for a score, strengths, gaps and an internship and placement verdict.",
+  github: "See your public GitHub profile the way a recruiter reads it.",
+  skillgap: "Compare your skills with a target role and get a learning list.",
+  courses: "Curated free courses, organised by track.",
+  certs: "Keep certifications and achievements in one record.",
+  projects: "Project blueprints that make a resume stand out.",
   study: "Summaries, key terms and quick quizzes from your notes.",
 };
-export function CareerHome({ nav, setActive }) {
+
+/** Reads another tool's saved state for this student without subscribing to it. */
+function peek(username, name, fallback) {
+  try { const raw = localStorage.getItem(`erp.career.${username}.${name}`); return raw ? JSON.parse(raw) : fallback; } catch { return fallback; }
+}
+
+export function CareerHome({ nav, setActive, session }) {
   const tools = nav.filter((n) => n.group === "Career Hub" && n.key !== "careerhub");
+  const [openings, setOpenings] = useState(null);
+  React.useEffect(() => { api.studentInternships().then(setOpenings).catch(() => setOpenings([])); }, []);
+
+  // Progress from what the student has already done in each tool (saved on this device).
+  const progress = useMemo(() => {
+    const u = session.username;
+    const resume = peek(u, "resume", {});
+    const role = ROLES.find((r) => r.key === (peek(u, "target", {}).role || resume.role)) || ROLES[0];
+    const resumeScore = resume.analysed && (resume.text?.trim() || resume.meta) ? resumeReport(resume.text || "", role, resume.meta).score : null;
+    const skillMatch = resume.text?.trim() ? matchSkills(resume.text, role).pct : null;
+    const github = peek(u, "github", {}).score ?? null;
+    const certs = (peek(u, "certs", []) || []).length;
+    const projects = Object.values(peek(u, "projects", {}) || {}).filter(Boolean).length;
+    const courses = Object.values(peek(u, "courses", {}) || {}).filter(Boolean).length;
+    const readiness = Math.round((resumeScore || 0) * 0.35 + (github || 0) * 0.2 + (skillMatch || 0) * 0.2
+      + Math.min(certs, 3) / 3 * 100 * 0.1 + Math.min(projects, 2) / 2 * 100 * 0.15);
+    const steps = [
+      { key: "resume", title: "Build a strong resume", detail: resumeScore == null ? "Not analysed yet" : `Score ${resumeScore}/100`, done: resumeScore >= 70 },
+      { key: "github", title: "Showcase your code", detail: github == null ? "GitHub not analysed" : `GitHub score ${github}/100`, done: github >= 60 },
+      { key: "skillgap", title: `Close skill gaps · ${role.title}`, detail: skillMatch == null ? "Upload a resume first" : `${skillMatch}% of key skills`, done: skillMatch >= 70 },
+      { key: "certs", title: "Earn certifications", detail: `${certs} recorded${courses ? ` · ${courses} course${courses > 1 ? "s" : ""} done` : ""}`, done: certs >= 2 },
+      { key: "projects", title: "Ship real projects", detail: `${projects} built`, done: projects >= 2 },
+    ];
+    return { readiness, steps, role };
+  }, [session.username]);
+  const doneCount = progress.steps.filter((s) => s.done).length;
+  const next = progress.steps.find((s) => !s.done);
+  const level = progress.readiness >= 75 ? "Placement ready" : progress.readiness >= 50 ? "Internship ready" : progress.readiness >= 25 ? "Building momentum" : "Getting started";
+
+  const eyebrow = { fontFamily: FONT_M, fontSize: 10, letterSpacing: "0.22em", textTransform: "uppercase", color: t.primary };
   return (
-    <div>
-      <Title sub="Everything for internships and placements, in one place. The Career Hub is shown in black and white so it reads like a focused workspace.">Career Hub</Title>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }}>
-        {tools.map((tool) => (
-          <button key={tool.key} onClick={() => setActive(tool.key)} className="sv-btn sv-lift"
-            style={{ textAlign: "left", padding: 18, borderRadius: 14, cursor: "pointer", background: "#fff",
-              border: "1.5px solid #111", boxShadow: "4px 4px 0 #111", color: "#111", minHeight: 140 }}>
-            <span style={{ width: 40, height: 40, borderRadius: 10, background: "#111", color: "#fff", display: "flex",
-              alignItems: "center", justifyContent: "center", marginBottom: 12 }}><tool.icon size={19} /></span>
-            <div style={{ fontFamily: FONT_D, fontSize: 17, fontWeight: 700 }}>{tool.label}</div>
-            <div style={{ fontSize: 12.5, color: "#333", marginTop: 5, lineHeight: 1.5 }}>{BLURBS[tool.key]}</div>
-          </button>
-        ))}
+    <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      {/* Hero */}
+      <div style={{ position: "relative", overflow: "hidden", borderRadius: 20, padding: "28px 28px 26px",
+        background: "radial-gradient(120% 140% at 100% 0%, rgba(212,175,55,0.22) 0%, rgba(212,175,55,0.04) 45%, transparent 70%), linear-gradient(160deg, #17150f 0%, #0d0d0e 60%)",
+        border: `1px solid ${t.borderGold}`, boxShadow: t.shadowLg }}>
+        <div style={{ display: "flex", gap: 28, alignItems: "center", flexWrap: "wrap" }}>
+          <div style={{ flex: 1, minWidth: 260 }}>
+            <div style={eyebrow}>Career Hub · Training & Placement</div>
+            <h1 style={{ fontFamily: FONT_D, fontSize: 34, lineHeight: 1.12, margin: "10px 0 10px", color: t.text, letterSpacing: "-0.015em" }}>
+              Become placement ready,<br /><span style={{ color: t.primary }}>one step at a time.</span>
+            </h1>
+            <p style={{ fontSize: 13.5, color: t.textDim, lineHeight: 1.6, margin: 0, maxWidth: 560 }}>
+              Tools to sharpen your resume, prove your skills and plan your learning, all in one place.
+              Your progress is saved on this device and only you can see it.
+            </p>
+            <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
+              <Button icon={FileText} onClick={() => setActive(next?.key || "resume")}>{next ? `Next: ${next.title}` : "Review your resume"}</Button>
+              <Button variant="ghost" icon={Github} onClick={() => setActive("github")}>Analyze GitHub</Button>
+            </div>
+          </div>
+          <div style={{ textAlign: "center", padding: "6px 10px" }}>
+            <Ring value={progress.readiness} size={138} />
+            <div style={{ fontFamily: FONT_D, fontSize: 16, fontWeight: 700, color: t.text, marginTop: 8 }}>{level}</div>
+            <div style={{ fontSize: 11.5, color: t.textFaint }}>Career readiness · {doneCount}/5 milestones</div>
+          </div>
+        </div>
       </div>
+
+      {/* Path */}
+      <Card lift={false} style={{ padding: 20 }}>
+        <SectionHead icon={Target} title="Your path to placement" sub="Five milestones recruiters look for. Each one opens the tool that gets you there." />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
+          {progress.steps.map((s, i) => (
+            <button key={s.key} onClick={() => setActive(s.key)} className="sv-btn sv-lift" style={{ textAlign: "left", cursor: "pointer",
+              padding: "14px 14px 13px", borderRadius: 14, background: s.done ? "rgba(212,175,55,0.10)" : t.surface,
+              border: `1px solid ${s.done ? t.borderGold : t.border}`, color: t.text, position: "relative" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                <span style={{ width: 28, height: 28, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+                  fontFamily: FONT_M, fontSize: 12, fontWeight: 800, background: s.done ? t.primary : "transparent",
+                  color: s.done ? t.onPrimary : t.primary, border: `1.5px solid ${t.primary}` }}>{s.done ? <Check size={14} /> : i + 1}</span>
+                <span style={{ fontFamily: FONT_M, fontSize: 9.5, letterSpacing: "0.14em", textTransform: "uppercase", color: s.done ? t.primary : t.textFaint }}>
+                  {s.done ? "Complete" : "To do"}</span>
+              </div>
+              <div style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.3 }}>{s.title}</div>
+              <div style={{ fontSize: 11.5, color: t.textDim, marginTop: 4 }}>{s.detail}</div>
+            </button>
+          ))}
+        </div>
+      </Card>
+
+      {/* Tools */}
+      <div>
+        <div style={{ ...eyebrow, marginBottom: 10 }}>Tools</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 14 }}>
+          {tools.map((tool) => (
+            <button key={tool.key} onClick={() => setActive(tool.key)} className="sv-btn sv-lift"
+              style={{ textAlign: "left", padding: 20, borderRadius: 16, cursor: "pointer", background: t.card, color: t.text,
+                border: `1px solid ${t.border}`, boxShadow: t.shadowMd, minHeight: 156, display: "flex", flexDirection: "column" }}>
+              <span style={{ width: 42, height: 42, borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center",
+                background: "linear-gradient(140deg, #E8C766, #B8901F)", color: "#111", marginBottom: 14 }}><tool.icon size={20} /></span>
+              <div style={{ fontFamily: FONT_D, fontSize: 18, fontWeight: 700 }}>{tool.label}</div>
+              <div style={{ fontSize: 12.5, color: t.textDim, marginTop: 6, lineHeight: 1.55, flex: 1 }}>{BLURBS[tool.key]}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: t.primary, marginTop: 12 }}>Open →</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Openings */}
+      <Card lift={false} style={{ padding: 20 }}>
+        <SectionHead icon={Star} title="Open internships for you" sub="Live from the Training & Placement cell, filtered to your department."
+          right={<Button size="sm" variant="ghost" onClick={() => setActive("internships")}>View all</Button>} />
+        {openings == null ? <Spinner /> : !openings.length ? (
+          <div style={{ fontSize: 12.5, color: t.textDim }}>No openings for your department right now.</div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 10 }}>
+            {openings.slice(0, 3).map((o) => (
+              <div key={o.id} style={{ padding: "14px 15px", borderRadius: 13, background: t.surface, border: `1px solid ${t.border}` }}>
+                <div style={{ fontSize: 11, color: t.primary, fontWeight: 700 }}>{o.organisation}</div>
+                <div style={{ fontSize: 14, fontWeight: 700, marginTop: 3 }}>{o.title}</div>
+                <div style={{ fontSize: 11.5, color: t.textDim, marginTop: 6 }}>{o.duration} · {o.stipend} · {o.mode}</div>
+                <div style={{ fontSize: 11, color: o.daysLeft <= 7 ? t.warning : t.textFaint, marginTop: 6 }}>
+                  {o.daysLeft >= 0 ? `Apply within ${o.daysLeft} day${o.daysLeft === 1 ? "" : "s"}` : "Closed"}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }
@@ -155,7 +266,7 @@ export function ResumeAnalyzer({ session, push }) {
           onDragOver={(e) => { e.preventDefault(); setDrag(true); }} onDragLeave={() => setDrag(false)}
           onDrop={(e) => { e.preventDefault(); setDrag(false); onFile(e.dataTransfer.files?.[0]); }}
           style={{ border: `2px dashed ${drag ? t.primary : t.border}`, borderRadius: 14, padding: "26px 18px", textAlign: "center",
-            cursor: reading ? "wait" : "pointer", background: drag ? t.primarySoft : "rgba(255,255,255,.6)" }}>
+            cursor: reading ? "wait" : "pointer", background: drag ? t.primarySoft : "rgba(212,175,55,0.035)" }}>
           {reading ? <><Spinner size={22} /><div style={{ fontSize: 13, marginTop: 10 }}>Reading your PDF…</div></> : (
             <>
               <Upload size={26} color={t.primary} />
@@ -164,7 +275,7 @@ export function ResumeAnalyzer({ session, push }) {
               <div style={{ fontSize: 12, color: t.textDim, marginTop: 4 }}>or click to choose a file · PDF only</div>
               {state.meta && (
                 <div style={{ marginTop: 12, display: "inline-flex", gap: 8, alignItems: "center", padding: "6px 11px", borderRadius: 9,
-                  background: "#fff", border: `1px solid ${t.border}`, fontSize: 12 }}>
+                  background: t.surface, border: `1px solid ${t.border}`, fontSize: 12 }}>
                   <FileText size={14} color={t.primary} /> <strong>{state.meta.fileName}</strong>
                   <span style={{ color: t.textDim }}>· {state.meta.pages} page{state.meta.pages > 1 ? "s" : ""} · {state.meta.sizeKB} KB</span>
                 </div>
@@ -260,7 +371,9 @@ export function GithubAnalyzer({ session }) {
       if (ur.status === 403 || rr.status === 403) throw new Error("GitHub's free request limit was reached. Try again in an hour.");
       if (!ur.ok || !rr.ok) throw new Error("GitHub could not be reached right now.");
       const user = await ur.json(), repos = await rr.json();
-      setData({ user, ...analyzeGithub(user, repos) });
+      const result = analyzeGithub(user, repos);
+      setData({ user, ...result });
+      setSaved({ ...saved, username: u, score: result.score, analysedAt: Date.now() });   // feeds the Career Hub readiness score
     } catch (e) { setError(e.message || "Could not reach GitHub."); } finally { setBusy(false); }
   }
 
@@ -273,7 +386,7 @@ export function GithubAnalyzer({ session }) {
         <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
           <input value={saved.username} onChange={(e) => setSaved({ username: e.target.value })} aria-label="GitHub username"
             onKeyDown={(e) => e.key === "Enter" && run()} placeholder="github username" style={{ ...input, maxWidth: 300 }} />
-          <Button onClick={run} disabled={busy}>{busy ? <Spinner size={14} color="#fff" /> : "Analyze GitHub"}</Button>
+          <Button onClick={run} disabled={busy}>{busy ? <Spinner size={14} color={t.onPrimary} /> : "Analyze GitHub"}</Button>
         </div>
         {error && <div role="alert" style={{ color: t.danger, fontSize: 12.5, marginTop: 12 }}>{error}</div>}
       </Card>
@@ -387,7 +500,7 @@ export function CareerCourses({ session }) {
     && (cat === "All" || c.cat === cat) && (`${c.title} ${c.skills.join(" ")}`.toLowerCase().includes(q.toLowerCase())));
   const completed = COURSES.filter((c) => done[c.id]).length;
   const chip = (on) => ({ padding: "7px 13px", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer", minHeight: 36,
-    background: on ? t.primary : "#fff", color: on ? "#fff" : t.textDim, border: `1px solid ${on ? t.primary : t.border}` });
+    background: on ? t.primary : t.surface, color: on ? t.onPrimary : t.textDim, border: `1px solid ${on ? t.primary : t.border}` });
   return (
     <div>
       <Title sub="Real, free courses. Open one, learn, then tick it off to track your progress.">Courses</Title>
@@ -569,7 +682,7 @@ export function StudyAssistant({ session }) {
                 <div style={{ fontFamily: FONT_D, fontSize: 19, fontWeight: 700, flex: 1 }}>{open.title}</div>
                 {[["summary", "Summary"], ["terms", "Key terms"], ["quiz", "Quiz"]].map(([k, l]) => (
                   <button key={k} className="sv-btn" onClick={() => { setView(k); if (k === "quiz" && !quiz) { setQuiz(makeQuiz(open.text)); setAnswers({}); } }}
-                    style={{ padding: "7px 13px", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer", background: view === k ? t.primary : "#fff", color: view === k ? "#fff" : t.textDim, border: `1px solid ${view === k ? t.primary : t.border}` }}>{l}</button>
+                    style={{ padding: "7px 13px", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer", background: view === k ? t.primary : t.surface, color: view === k ? t.onPrimary : t.textDim, border: `1px solid ${view === k ? t.primary : t.border}` }}>{l}</button>
                 ))}
                 <Button variant="ghost" icon={speaking ? Square : Play} onClick={() => speak(summarize(open.text, 6).join(" "))}>{speaking ? "Stop" : "Read aloud"}</Button>
               </div>
@@ -583,7 +696,7 @@ export function StudyAssistant({ session }) {
                       <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
                         {x.options.map((o) => {
                           const picked = answers[i] === o, shown = answers[i] !== undefined;
-                          const bg = shown ? (o === x.answer ? t.successSoft : picked ? t.dangerSoft : "#fff") : "#fff";
+                          const bg = shown ? (o === x.answer ? t.successSoft : picked ? t.dangerSoft : t.surface) : t.surface;
                           return <button key={o} className="sv-btn" disabled={shown} onClick={() => setAnswers({ ...answers, [i]: o })}
                             style={{ padding: "7px 13px", borderRadius: 8, fontSize: 12.5, cursor: "pointer", background: bg, border: `1px solid ${shown && o === x.answer ? t.success : t.border}` }}>{o}</button>;
                         })}
@@ -600,48 +713,6 @@ export function StudyAssistant({ session }) {
           )}
         </Card>
       </div>
-    </div>
-  );
-}
-
-/* ───────────────────────── Settings: the quick code ───────────────────────── */
-export function QuickCodeSettings({ push, session }) {
-  const [has, setHas] = useState(null);
-  const [password, setPassword] = useState("");
-  const [first, setFirst] = useState(null);
-  const [status, setStatus] = useState("idle");
-  const [key, setKey] = useState(0);
-  const [busy, setBusy] = useState(false);
-  React.useEffect(() => { api.me().then((m) => setHas(!!m.hasQuickCode)).catch(() => setHas(false)); }, []);
-
-  async function complete(code) {
-    if (!first) { setFirst(code); setKey((k) => k + 1); return; }
-    if (first !== code) { setStatus("error"); push({ title: "Codes don't match", body: "Start again.", tone: "danger" }); setFirst(null); setTimeout(() => { setStatus("idle"); setKey((k) => k + 1); }, 800); return; }
-    setBusy(true);
-    try {
-      await api.setQuickCode(password, code);
-      setStatus("success"); setHas(true); setFirst(null); setPassword(""); markQuickCode("STUDENT", session.username, session.displayName, true);
-      push({ title: "Quick code saved", body: "You can now sign in with these 6 digits.", tone: "success" });
-    } catch (e) { setStatus("error"); push({ title: "Not saved", body: e.message, tone: "danger" }); setFirst(null); setTimeout(() => { setStatus("idle"); setKey((k) => k + 1); }, 800); }
-    finally { setBusy(false); }
-  }
-  async function remove() {
-    try { await api.removeQuickCode(); setHas(false); markQuickCode("STUDENT", session.username, session.displayName, false); push({ title: "Quick code removed", tone: "warning" }); }
-    catch (e) { push({ title: "Not removed", body: e.message, tone: "danger" }); }
-  }
-  return (
-    <div>
-      <Title sub="Sign in with 6 digits instead of your roll number and password.">Settings</Title>
-      <Card lift={false} style={{ padding: 20, maxWidth: 520 }}>
-        <SectionHead icon={Hash} title="Quick code" sub={has ? "A quick code is set on your account." : "No quick code yet."} />
-        <Field label="Your current password (to confirm it's you)" type="password" value={password} onChange={setPassword} />
-        <div style={{ margin: "16px 0 10px", fontSize: 12.5, fontWeight: 600 }}>{first ? "Enter it once more to confirm" : has ? "Choose a new 6-digit code" : "Choose a 6-digit code"}</div>
-        <CodeSlots length={6} mask status={status} resetKey={key} autoFocus={false} disabled={!password || busy} onComplete={complete}
-          accentColor="#1B5E3A" inkColor="#1B5E3A" slotColor="#ffffff" digitColor="#10251A" dangerColor="#C8102E"
-          slotSize={42} gap={8} radius={12} bounce={0.2} settle={0.3} rise={8} cascade={20} />
-        {!password && <div style={{ fontSize: 11.5, color: t.textFaint, marginTop: 8 }}>Type your password first.</div>}
-        {has && <div style={{ marginTop: 18 }}><Button variant="ghost" icon={Trash2} onClick={remove}>Remove quick code</Button></div>}
-      </Card>
     </div>
   );
 }

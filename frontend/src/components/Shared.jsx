@@ -1,6 +1,10 @@
 import React, { useState } from "react";
 import { theme as t, COLLEGE, FONT_D, FONT_B, FONT_M } from "../lib/theme";
 
+/** The palette for everything below a provider: light by default, black and gold in the Career Hub. */
+export const ThemeContext = React.createContext(t);
+export const useTheme = () => React.useContext(ThemeContext);
+
 /* ── Global styles: ambient ground, glass surfaces, phone rules ── */
 export const GlobalStyle = () => (
   <style>{`
@@ -30,6 +34,12 @@ export const GlobalStyle = () => (
     .sv-glass::after { content:''; position:absolute; left:12%; right:12%; top:0; height:1px; pointer-events:none;
       background:linear-gradient(90deg, transparent, rgba(255,255,255,.95), transparent); }
     .sv-glass > * { position:relative; z-index:1; }
+    /* Career Hub (black and gold): a faint gold sheen instead of the white glass highlight. */
+    [data-career] .sv-glass::before { background:linear-gradient(150deg, rgba(232,199,102,.075) 0%, rgba(232,199,102,0) 42%); }
+    [data-career] .sv-glass::after { background:linear-gradient(90deg, transparent, rgba(232,199,102,.45), transparent); }
+    [data-career] .sv-skel { background:linear-gradient(90deg, rgba(212,175,55,.05) 0, rgba(212,175,55,.12) 44px, rgba(212,175,55,.05) 88px);
+      background-size:840px 100%; }
+    [data-career] ::selection { background: rgba(212,175,55,.35); color: #fff; }
     .sv-lift:hover { transform: translateY(-4px); }
     .sv-btn { transition: transform .12s ease, opacity .12s, background-color .16s, border-color .16s; }
     .sv-btn:active { transform: scale(.96); }
@@ -129,16 +139,20 @@ export function Crest({ size = 34 }) {
   );
 }
 
-export const SealWatermark = ({ size = 200, style = {} }) => (
+export function SealWatermark({ size = 200, style = {} }) {
+  const t = useTheme();
+  return (
   <div aria-hidden="true" style={{ position: "absolute", pointerEvents: "none", opacity: 0.5, ...style }}>
     <svg width={size} height={size} viewBox="0 0 100 100">
       <path d="M27 31 H73 V60 Q73 76 50 86 Q27 76 27 60 Z" fill={t.seal} />
       <path d="M34 38 H66 V41 H34 Z M34 38 V70 H37 V38 Z M63 38 V70 H66 V38 Z" fill={t.seal} />
     </svg>
   </div>
-);
+  );
+}
 
 export function Card({ children, style = {}, className = "", onClick, lift = true }) {
+  const t = useTheme();
   const [hover, setHover] = useState(false);
   return (
     <div onClick={onClick} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
@@ -152,6 +166,7 @@ export function Card({ children, style = {}, className = "", onClick, lift = tru
 }
 
 export function Badge({ tone = "primary", children, style = {} }) {
+  const t = useTheme();
   const c = { primary: t.primary, gold: t.gold, success: t.success, warning: t.warning, danger: t.danger }[tone];
   const bg = { primary: t.primarySoft, gold: t.goldSoft, success: t.successSoft, warning: t.warningSoft, danger: t.dangerSoft }[tone];
   return (
@@ -164,9 +179,10 @@ export function Badge({ tone = "primary", children, style = {} }) {
 }
 
 export function Button({ children, onClick, variant = "primary", size = "md", icon: Icon, disabled, full, type = "button" }) {
+  const t = useTheme();
   const styles = {
-    primary: { background: t.primary, color: "#fff", border: `1px solid ${t.primary}` },
-    gold: { background: t.gold, color: "#fff", border: `1px solid ${t.gold}` },
+    primary: { background: t.primary, color: t.onPrimary, border: `1px solid ${t.primary}` },
+    gold: { background: t.gold, color: t.onPrimary, border: `1px solid ${t.gold}` },
     ghost: { background: "transparent", color: t.textDim, border: `1px solid ${t.border}` },
     soft: { background: t.primarySoft, color: t.primary, border: `1px solid ${t.primary}33` },
     danger: { background: t.dangerSoft, color: t.danger, border: `1px solid ${t.danger}44` },
@@ -182,6 +198,7 @@ export function Button({ children, onClick, variant = "primary", size = "md", ic
 }
 
 export function SectionHead({ title, sub, icon: Icon, right }) {
+  const t = useTheme();
   return (
     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 11, minWidth: 0 }}>
@@ -202,6 +219,7 @@ export function SectionHead({ title, sub, icon: Icon, right }) {
 }
 
 export function Progress({ pct, color, height = 6 }) {
+  const t = useTheme();
   return (
     <div style={{ height, borderRadius: 999, background: t.border, overflow: "hidden" }}>
       <div style={{ height: "100%", width: `${Math.min(pct || 0, 100)}%`, background: color,
@@ -210,7 +228,9 @@ export function Progress({ pct, color, height = 6 }) {
   );
 }
 
-export function Spinner({ size = 18, color = t.primary }) {
+export function Spinner({ size = 18, color }) {
+  const t = useTheme();
+  color = color || t.primary;
   return (
     <div style={{
       width: size, height: size, borderRadius: "50%",
@@ -221,6 +241,7 @@ export function Spinner({ size = 18, color = t.primary }) {
 }
 
 export function Skeleton({ count = 4, height = 116 }) {
+  const t = useTheme();
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px,1fr))", gap: 13 }}>
       {Array.from({ length: count }).map((_, i) =>
@@ -231,6 +252,7 @@ export function Skeleton({ count = 4, height = 116 }) {
 
 /** Empty states invite an action rather than apologise. */
 export function EmptyState({ icon: Icon, title, body, action }) {
+  const t = useTheme();
   return (
     <div style={{ textAlign: "center", padding: "40px 20px" }}>
       {Icon && <Icon size={30} color={t.textFaint} style={{ marginBottom: 12 }} />}
@@ -242,6 +264,7 @@ export function EmptyState({ icon: Icon, title, body, action }) {
 }
 
 export function ErrorNote({ message, onRetry }) {
+  const t = useTheme();
   return (
     <Card lift={false} style={{ padding: 18, borderColor: `${t.danger}44` }}>
       <div style={{ fontSize: 13, fontWeight: 700, color: t.danger }}>That didn't load</div>
@@ -252,6 +275,7 @@ export function ErrorNote({ message, onRetry }) {
 }
 
 export function Modal({ open, onClose, title, eyebrow, children, footer, width = 480 }) {
+  const t = useTheme();
   React.useEffect(() => {
     if (!open) return;
     const onKey = (e) => e.key === "Escape" && onClose();
@@ -299,12 +323,13 @@ export async function copyText(text) {
 }
 
 export function CopyButton({ text, label = "Copy" }) {
+  const t = useTheme();
   const [state, setState] = useState("idle");   // idle | done | failed
   return (
     <button type="button" className="sv-btn" aria-label={`${label}: ${text}`}
       onClick={async () => { setState((await copyText(text)) ? "done" : "failed"); setTimeout(() => setState("idle"), 1800); }}
       style={{ padding: "6px 11px", borderRadius: 7, fontSize: 11.5, fontWeight: 700, cursor: "pointer", minHeight: 34,
-        background: state === "done" ? t.successSoft : "#fff", color: state === "failed" ? t.danger : t.primary,
+        background: state === "done" ? t.successSoft : t.surface, color: state === "failed" ? t.danger : t.primary,
         border: `1px solid ${state === "done" ? t.success : t.border}` }}>
       {state === "done" ? "Copied" : state === "failed" ? "Select and copy" : label}
     </button>
@@ -316,6 +341,7 @@ export function CopyButton({ text, label = "Copy" }) {
  * stores them in plain text, so closing this is the last chance to copy them.
  */
 export function CredentialsModal({ open, onClose, title = "Account created", rows = [] }) {
+  const t = useTheme();
   const all = rows.map((r) => `${r.username}\t${r.temporaryPassword}`).join("\n");
   return (
     <Modal open={open} onClose={onClose} eyebrow="Temporary password" title={title} width={520}
@@ -346,12 +372,13 @@ export function CredentialsModal({ open, onClose, title = "Account created", row
 }
 
 export function Field({ label, value, onChange, type = "text", placeholder, hint }) {
+  const t = useTheme();
   return (
     <div>
       <label style={{ display: "block", fontSize: 11.5, fontWeight: 600, color: t.textDim, marginBottom: 6 }}>{label}</label>
       <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
         style={{
-          width: "100%", padding: "11px 13px", borderRadius: 9, background: "#fff",
+          width: "100%", padding: "11px 13px", borderRadius: 9, background: t.surface,
           border: `1px solid ${t.border}`, color: t.text, fontSize: 13.5,
           outline: "2px solid transparent", outlineOffset: 2, fontFamily: FONT_B, minHeight: 44,
         }} />

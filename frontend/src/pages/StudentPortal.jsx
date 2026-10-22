@@ -16,7 +16,8 @@ import {
 } from "../components/Shared";
 import { api, download } from "../lib/api";
 import KpiTiles from "../components/KpiTiles";
-import { ResumeAnalyzer, GithubAnalyzer, SkillGap, CareerCourses, Certifications, ProjectBlueprints, StudyAssistant, QuickCodeSettings, CareerHome } from "./CareerHub";
+import { ResumeAnalyzer, GithubAnalyzer, SkillGap, CareerCourses, Certifications, ProjectBlueprints, StudyAssistant, CareerHome } from "./CareerHub";
+import { QuickCodeSettings } from "./Settings";
 import { Assessments, Practicals, UniversityExams } from "./StudentExams";
 import FeePortal from "./FeePortal";
 
@@ -35,14 +36,14 @@ const NAV = [
   { key: "internships", label: "Internships", icon: Rocket, group: "Growth" },
   { key: "roadmap", label: "Roadmap", icon: Target, group: "Growth" },
   // One boxed section; every page inside it is shown in black and white.
-  { key: "careerhub", label: "Overview", icon: Compass, group: "Career Hub", box: true, mono: true },
-  { key: "resume", label: "Resume Analyzer", icon: FileText, group: "Career Hub", box: true, mono: true },
-  { key: "github", label: "GitHub Analyzer", icon: Github, group: "Career Hub", box: true, mono: true },
-  { key: "skillgap", label: "Skill Gap", icon: Target, group: "Career Hub", box: true, mono: true },
-  { key: "courses", label: "Courses", icon: GraduationCap, group: "Career Hub", box: true, mono: true },
-  { key: "certs", label: "Certifications", icon: Award, group: "Career Hub", box: true, mono: true },
-  { key: "projects", label: "Projects", icon: FolderGit2, group: "Career Hub", box: true, mono: true },
-  { key: "study", label: "Study Assistant", icon: Headphones, group: "Career Hub", box: true, mono: true },
+  { key: "careerhub", label: "Overview", icon: Compass, group: "Career Hub", box: true, career: true },
+  { key: "resume", label: "Resume Analyzer", icon: FileText, group: "Career Hub", box: true, career: true },
+  { key: "github", label: "GitHub Analyzer", icon: Github, group: "Career Hub", box: true, career: true },
+  { key: "skillgap", label: "Skill Gap", icon: Target, group: "Career Hub", box: true, career: true },
+  { key: "courses", label: "Courses", icon: GraduationCap, group: "Career Hub", box: true, career: true },
+  { key: "certs", label: "Certifications", icon: Award, group: "Career Hub", box: true, career: true },
+  { key: "projects", label: "Projects", icon: FolderGit2, group: "Career Hub", box: true, career: true },
+  { key: "study", label: "Study Assistant", icon: Headphones, group: "Career Hub", box: true, career: true },
   { key: "settings", label: "Settings", icon: SettingsIcon, group: "Account" },
 ];
 
@@ -84,7 +85,7 @@ export default function StudentPortal({ session, onSignOut }) {
         {active === "practicals" && <Practicals />}
         {active === "university" && <UniversityExams />}
         {active === "fees" && <FeePortal push={push} />}
-        {active === "careerhub" && <CareerHome nav={NAV} setActive={setActive} />}
+        {active === "careerhub" && <CareerHome nav={NAV} setActive={setActive} session={session} />}
         {active === "cms" && <CampusServices push={push} />}
         {active === "leave" && <LeaveDesk push={push} />}
         {active === "learning" && <LearningPath />}
