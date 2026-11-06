@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   LayoutDashboard, Calendar, BarChart3, Building, BookOpen, Briefcase, Rocket, Target,
   Download, Filter, FileText, Github, GraduationCap, FolderGit2, Headphones, Settings as SettingsIcon, AlertTriangle, CheckCircle2, Award, Clock, ArrowUpRight, Send, Check, Info,
-  ClipboardCheck, FlaskConical, Wallet, Compass,
+  ClipboardCheck, FlaskConical, Wallet, Compass, UserCircle,
 } from "lucide-react";
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
@@ -20,6 +20,7 @@ import { ResumeAnalyzer, GithubAnalyzer, SkillGap, CareerCourses, Certifications
 import { QuickCodeSettings } from "./Settings";
 import { Assessments, Practicals, UniversityExams } from "./StudentExams";
 import FeePortal from "./FeePortal";
+import StudentProfile, { Avatar } from "./StudentProfile";
 
 const NAV = [
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, group: "Academics" },
@@ -44,6 +45,7 @@ const NAV = [
   { key: "certs", label: "Certifications", icon: Award, group: "Career Hub", box: true, career: true },
   { key: "projects", label: "Projects", icon: FolderGit2, group: "Career Hub", box: true, career: true },
   { key: "study", label: "Study Assistant", icon: Headphones, group: "Career Hub", box: true, career: true },
+  { key: "profile", label: "My Profile", icon: UserCircle, group: "Account" },
   { key: "settings", label: "Settings", icon: SettingsIcon, group: "Account" },
 ];
 
@@ -73,12 +75,21 @@ function useAsync(fn, deps = []) {
 export default function StudentPortal({ session, onSignOut }) {
   const [active, setActive] = useState("dashboard");
   const { toasts, push, dismiss } = useToasts();
+  const [photoUrl, setPhotoUrl] = useState(null);
+
+  // The photo is behind the auth header, so it's fetched as a blob rather than linked directly.
+  const loadPhoto = React.useCallback(() =>
+    api.studentPhoto()
+      .then((blob) => URL.createObjectURL(blob))
+      .catch(() => null)
+      .then((url) => setPhotoUrl((old) => { if (old) URL.revokeObjectURL(old); return url; })), []);
+  useEffect(() => { loadPhoto(); }, [loadPhoto]);
 
   return (
     <>
       <Shell nav={NAV} active={active} setActive={setActive} session={session}
-        onSignOut={onSignOut} subtitle="Student Portal">
-        {active === "dashboard" && <Overview push={push} setActive={setActive} />}
+        onSignOut={onSignOut} subtitle="Student Portal" avatarUrl={photoUrl}>
+        {active === "dashboard" && <Overview push={push} setActive={setActive} photoUrl={photoUrl} />}
         {active === "attendance" && <Attendance push={push} />}
         {active === "marks" && <Marks push={push} />}
         {active === "assessments" && <Assessments />}
@@ -99,6 +110,7 @@ export default function StudentPortal({ session, onSignOut }) {
         {active === "certs" && <Certifications session={session} push={push} />}
         {active === "projects" && <ProjectBlueprints session={session} />}
         {active === "study" && <StudyAssistant session={session} />}
+        {active === "profile" && <StudentProfile push={push} photoUrl={photoUrl} onPhotoChange={loadPhoto} />}
         {active === "settings" && <QuickCodeSettings push={push} session={session} />}
       </Shell>
       <ToastStack toasts={toasts} dismiss={dismiss} />
@@ -111,7 +123,7 @@ export default function StudentPortal({ session, onSignOut }) {
 const inr = (n) => "₹" + Number(n).toLocaleString("en-IN");
 const shortDate = (d) => new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 
-function Overview({ push, setActive }) {
+function Overview({ push, setActive, photoUrl }) {
   const profile = useAsync(() => api.studentProfile(), []);
   const attendance = useAsync(() => api.studentAttendance("all"), []);
   const risk = useAsync(() => api.studentRisk(), []);
@@ -156,9 +168,9 @@ function Overview({ push, setActive }) {
       {/* Who: the essentials of the student record, nothing repeated */}
       <Card lift={false} style={{ padding: "18px 20px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-          <div style={{ width: 52, height: 52, borderRadius: "50%", background: t.primary, color: "#fff", flexShrink: 0,
-            display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 600 }}>
-            {p.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+          <div role="button" tabIndex={0} title="Open my profile" onClick={() => setActive("profile")}
+            onKeyDown={(e) => e.key === "Enter" && setActive("profile")} style={{ cursor: "pointer" }}>
+            <Avatar name={p.name} photoUrl={photoUrl} size={52} />
           </div>
           <div style={{ flex: 1, minWidth: 220 }}>
             <div style={{ fontSize: 19, fontWeight: 650, color: t.text }}>{p.name}</div>

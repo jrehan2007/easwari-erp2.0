@@ -105,7 +105,24 @@ public class Dtos {
                                  String phone, String programCode, String programName, int durationYears,
                                  String department, String section, int year, int semester,
                                  String batch, String mentor, String classCoordinator, String hostel,
-                                 double cgpa, int creditsEarned, int creditsRequired) {}
+                                 double cgpa, int creditsEarned, int creditsRequired,
+                                 String bloodGroup, String dateOfBirth, String gender, String address,
+                                 String fatherName, String motherName, String parentPhone, String about,
+                                 String linkedinUrl, String githubUrl, boolean hasPhoto) {}
+    /** Fields a student may edit about themselves; academic data stays with the college. */
+    public record StudentProfileUpdate(
+            @Email @Size(max = 255) String email,
+            @Pattern(regexp = "^$|^[+0-9 ()-]{7,20}$", message = "Phone number looks invalid") String phone,
+            @Past(message = "Date of birth must be in the past") LocalDate dateOfBirth,
+            @Size(max = 16) String gender,
+            @Size(max = 4) String bloodGroup,
+            @Size(max = 400) String address,
+            @Size(max = 255) String fatherName,
+            @Size(max = 255) String motherName,
+            @Pattern(regexp = "^$|^[+0-9 ()-]{7,20}$", message = "Parent phone number looks invalid") String parentPhone,
+            @Size(max = 1000) String about,
+            @Size(max = 255) String linkedinUrl,
+            @Size(max = 255) String githubUrl) {}
     /** coordinator: the signed-in faculty member is this section's class coordinator. */
     public record FacultyClass(Long classSectionId, Long subjectOfferingId, String subjectCode,
                                String subjectName, String sectionName, int studentCount,

@@ -56,6 +56,14 @@ export const api = {
 
   // student
   studentProfile: () => request("/student/me"),
+  updateStudentProfile: (body) => request("/student/me", { method: "PUT", body }),
+  studentPhoto: () => request("/student/me/photo", { raw: true }),
+  uploadStudentPhoto: (file) => {
+    const fd = new FormData();
+    fd.append("photo", file);
+    return request("/student/me/photo", { method: "POST", body: fd });
+  },
+  removeStudentPhoto: () => request("/student/me/photo", { method: "DELETE" }),
   studentAttendance: (subject = "all") => request(`/student/attendance?subject=${encodeURIComponent(subject)}`),
   studentMarks: () => request("/student/marks"),
   studentAssessments: () => request("/student/exams/assessments"),

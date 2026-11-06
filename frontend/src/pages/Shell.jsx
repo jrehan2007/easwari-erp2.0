@@ -8,7 +8,7 @@ import LiquidEther from "../components/LiquidEther";
  * Chrome shared by all three portals: crest-bearing sidebar, sticky header,
  * and a thumb-reachable bottom bar on phones.
  */
-export default function Shell({ nav, active, setActive, session, onSignOut, children, subtitle }) {
+export default function Shell({ nav, active, setActive, session, onSignOut, children, subtitle, avatarUrl }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
@@ -182,11 +182,15 @@ export default function Shell({ nav, active, setActive, session, onSignOut, chil
           <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "4px 10px 4px 4px",
             borderRadius: 10, background: panel(0.55), border: `1px solid ${t.border}`,
             flexShrink: 0, minHeight: 40 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8,
-              background: t.primary, display: "flex",
-              alignItems: "center", justifyContent: "center", color: t.onPrimary, fontSize: 11.5, fontWeight: 800 }}>
-              {(session.displayName || session.username).split(" ").map((n) => n[0]).join("").slice(0, 2)}
-            </div>
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="" style={{ width: 32, height: 32, borderRadius: 8, objectFit: "cover", display: "block" }} />
+            ) : (
+              <div style={{ width: 32, height: 32, borderRadius: 8,
+                background: t.primary, display: "flex",
+                alignItems: "center", justifyContent: "center", color: t.onPrimary, fontSize: 11.5, fontWeight: 800 }}>
+                {(session.displayName || session.username).split(" ").map((n) => n[0]).join("").slice(0, 2)}
+              </div>
+            )}
             <div className="sv-desktop-only" style={{ textAlign: "left" }}>
               <div style={{ fontSize: 11.5, fontWeight: 700, color: ink, lineHeight: 1.2 }}>
                 {session.displayName || session.username}

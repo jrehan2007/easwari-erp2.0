@@ -78,31 +78,62 @@ const ROLES = [
 ];
 
 export function RolePicker({ onPick }) {
+  // 1 / 2 / 3 on the keyboard opens the matching portal.
+  useEffect(() => {
+    const onKey = (e) => {
+      const r = ROLES[Number(e.key) - 1];
+      if (r && !e.metaKey && !e.ctrlKey && !e.altKey) onPick(r.key);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onPick]);
+
   return (
-    <AuthBackdrop>
-      <div style={{ width: "100%", maxWidth: 760, textAlign: "center" }}>
-        <div style={{ display: "inline-flex", marginBottom: 14 }}><CollegeMark size={52} showText={false} /></div>
-        <h1 style={{ fontFamily: FONT_D, color: "#fff", fontSize: 30, margin: "0 0 6px", letterSpacing: "-0.02em" }}>
-          Welcome to {COLLEGE.shortName} ERP
-        </h1>
-        <p style={{ color: "#c8ead4", fontSize: 14, margin: "0 0 28px" }}>Choose how you're signing in.</p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 16 }}>
-          {ROLES.map((r) => (
-            <button key={r.key} onClick={() => onPick(r.key)} className="sv-btn"
-              style={{ ...glass, padding: "26px 18px", cursor: "pointer", textAlign: "center", color: "#10251A",
-                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start",
-                transition: "transform .2s ease, box-shadow .2s ease" }}
-              onMouseEnter={(e) => (e.currentTarget.style.transform = "translateY(-5px)")}
-              onMouseLeave={(e) => (e.currentTarget.style.transform = "none")}>
-              <span style={{ width: 54, height: 54, borderRadius: 14, margin: "0 auto 14px", display: "flex",
-                alignItems: "center", justifyContent: "center", color: "#fff",
-                background: "linear-gradient(140deg,#1B5E3A,#2f9e5f)" }}><r.icon size={26} /></span>
-              <div style={{ fontFamily: FONT_D, fontSize: 19, fontWeight: 700 }}>{r.title}</div>
-              <div style={{ fontSize: 12, color: "#2F5144", marginTop: 6, lineHeight: 1.5 }}>{r.blurb}</div>
-            </button>
-          ))}
-        </div>
-        <div style={{ marginTop: 26, color: "#8fb9a0", fontSize: 11 }}>{COLLEGE.affiliation} · {COLLEGE.location}</div>
+    <AuthBackdrop center={false}>
+      <style>{`
+        .lp-link { color:#fff; background:transparent; border:1px solid transparent; }
+        .lp-link:hover, .lp-link:focus-visible { background:rgba(255,255,255,0.12); border-color:rgba(255,255,255,0.28); }
+        .lp-link:focus-visible { outline:2px solid #27ff45; outline-offset:2px; }
+        .lp-nav { display:flex; align-items:center; gap:16px; }
+        .lp-links { display:flex; gap:6px; margin-left:auto; }
+        @media (max-width: 640px) {
+          .lp-nav { flex-direction:column; align-items:stretch; gap:12px; }
+          .lp-links { margin-left:0; }
+          .lp-links > button { flex:1; justify-content:center; padding:10px 6px !important; }
+        }
+      `}</style>
+      <div style={{ width: "100%", maxWidth: 1100, minHeight: "calc(100vh - 40px)", display: "flex", flexDirection: "column" }}>
+        <header className="lp-nav" style={{ background: "rgba(4,17,10,0.55)", border: "1px solid rgba(255,255,255,0.14)",
+          borderRadius: 14, padding: "10px 14px", backdropFilter: "blur(14px)", boxShadow: "0 12px 40px rgba(0,0,0,0.35)" }}>
+          <CollegeMark size={34} inverted />
+          <nav aria-label="Choose a portal" className="lp-links">
+            {ROLES.map((r) => (
+              <button key={r.key} onClick={() => onPick(r.key)} className="sv-btn lp-link"
+                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 16px", borderRadius: 10,
+                  cursor: "pointer", fontFamily: FONT_B, fontSize: 13.5, fontWeight: 600, transition: "background .16s ease" }}>
+                <r.icon size={17} color="#9fffc6" />
+                {r.key === "ADMIN" ? "Admin" : r.title}
+              </button>
+            ))}
+          </nav>
+        </header>
+
+        <main style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+          textAlign: "center", padding: "48px 8px" }}>
+          <div style={{ fontFamily: FONT_M, color: "#9fffc6", fontSize: 11, letterSpacing: "0.22em", textTransform: "uppercase" }}>
+            {COLLEGE.group}
+          </div>
+          <h1 style={{ fontFamily: FONT_D, color: "#fff", fontSize: "clamp(30px, 6vw, 52px)", margin: "12px 0 10px",
+            letterSpacing: "-0.02em", lineHeight: 1.1 }}>
+            Welcome to {COLLEGE.shortName} ERP
+          </h1>
+          <p style={{ color: "#c8ead4", fontSize: 15, margin: 0, maxWidth: 520, lineHeight: 1.6 }}>
+            Attendance, academics, fees and placements in one place.
+            Choose Student, Faculty or Admin from the menu to sign in.
+          </p>
+        </main>
+
+        <div style={{ textAlign: "center", color: "#8fb9a0", fontSize: 11 }}>{COLLEGE.affiliation} · {COLLEGE.location}</div>
       </div>
     </AuthBackdrop>
   );

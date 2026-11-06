@@ -42,6 +42,7 @@ public class StudentController {
     private final LeaveApplicationService leaveApplicationService;
     private final ExamService examService;
     private final FeeService feeService;
+    private final StudentProfileService profileService;
 
     private Student me() {
         User user = currentUser.get();
@@ -51,26 +52,34 @@ public class StudentController {
     }
 
     @GetMapping("/me")
-    @Transactional(readOnly = true)
     public StudentProfile profile() {
-        Student s = me();
-        Program p = s.getProgram();
-        String programCode = p != null ? p.getCode() : "";
-        String programName = p != null ? p.getName() : "";
-        int durationYears = p != null ? p.getDurationYears() : 4;
-        String department = p != null && p.getDepartment() != null ? p.getDepartment().getName() : "";
-        ClassSection sectionEntity = s.getClassSection();
-        String section = sectionEntity != null ? sectionEntity.getSection() : "";
-        String mentor = s.getMentor() != null ? s.getMentor().getName() : "";
-        String classCoordinator = sectionEntity != null && sectionEntity.getCoordinator() != null
-                ? sectionEntity.getCoordinator().getName() : "";
-        int creditsRequired = p != null ? p.getTotalCreditsRequired() : 168;
-        String batch = s.getBatchStartYear() + " – " + (s.getBatchStartYear() + durationYears);
+        return profileService.view(me().getId());
+    }
 
-        return new StudentProfile(s.getId(), s.getRollNo(), s.getRegNo(), s.getName(), s.getEmail(), s.getPhone(),
-                programCode, programName, durationYears, department, section,
-                s.getCurrentYear(), s.getCurrentSemester(), batch, mentor, classCoordinator,
-                s.getHostelBlock(), s.getCgpa(), s.getCreditsEarned(), creditsRequired);
+    @PutMapping("/me")
+    public StudentProfile updateProfile(@Valid @RequestBody StudentProfileUpdate req) {
+        return profileService.update(currentUser.get(), me().getId(), req);
+    }
+
+    @PostMapping(value = "/me/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public StudentProfile uploadPhoto(@RequestPart("photo") MultipartFile photo) {
+        return profileService.savePhoto(currentUser.get(), me().getId(), photo);
+    }
+
+    @DeleteMapping("/me/photo")
+    public StudentProfile removePhoto() {
+        return profileService.removePhoto(currentUser.get(), me().getId());
+    }
+
+    @GetMapping("/me/photo")
+    public ResponseEntity<Resource> photo() throws IOException {
+        java.nio.file.Path path = profileService.photoPath(me().getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No photo uploaded"));
+        String contentType = java.nio.file.Files.probeContentType(path);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(contentType != null ? contentType : "image/jpeg"))
+                .cacheControl(CacheControl.noCache())
+                .body(new org.springframework.core.io.FileSystemResource(path));
     }
 
     /** subject=all or a subject code such as CS8492. */
